@@ -1,0 +1,3 @@
+- Delay of all internal links are the same
+    - internal links != external links
+- Each request and it's correspond computations, done before next request
