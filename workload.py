@@ -26,7 +26,10 @@ class StationaryWorkload(object):
             t_event += 1
             client = random.choice(self.clients)
             content = int(self.zipf.rv())
+#            client = 30
+#            content = 0
 #            event = {'client':client, 'content': content}
             yield (t_event, client, content)
             req_counter += 1
         raise StopIteration()
+#
