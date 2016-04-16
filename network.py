@@ -54,7 +54,7 @@ class Network():
         counter = 1
         for time, client, content in self.workload:
             if not counter%1000:
-                sys.stdout.write('\r{0:.2f}%'.format(counter/float(self.N_MEASURED_REQUESTS)))
+                sys.stdout.write('\r{0:.2f}%'.format(100*counter/float(self.N_MEASURED_REQUESTS)))
                 sys.stdout.flush()
                 sleep(1)
 #            if not counter%100000:
@@ -145,7 +145,7 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-                    value = popularity_u*(self.max_delay-(average_delay+\
+                    value = popularity_u*(self.max_delay-(average_delay_u-average_delay+\
                             (len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
                     sum_value += value
                         
@@ -272,7 +272,7 @@ class Cache():
 if __name__=='__main__':
     n = Network(3,2,4)
     n.run()
-    print 'hit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
+    print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
     
