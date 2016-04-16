@@ -3,8 +3,8 @@ from stats import TruncatedZipfDist
 import random
 
 class StationaryWorkload(object):
-    def __init__(self, clients, n_contents, alpha, rate=1.0,
-                    n_warmup=10**5, n_measured=4*10**5, seed=None, **kwargs):
+    def __init__(self, clients, n_contents, alpha, 
+                    n_warmup, n_measured, rate=1.0, seed=None, **kwargs):
         if alpha < 0:
             raise ValueError('alpha must be positive')
         self.clients = clients
