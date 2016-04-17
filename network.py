@@ -10,10 +10,10 @@ from time import sleep
 
 class Network():
     def __init__(self, core, k, h):
-        self.CACHE_BUDGET_FRACTION = .04
-        self.N_CONTENTS = 3*10**4
-        self.N_WARMUP_REQUESTS = 3*10**5
-        self.N_MEASURED_REQUESTS = 6*10**5
+        self.CACHE_BUDGET_FRACTION = .004
+        self.N_CONTENTS = 3*10**3
+        self.N_WARMUP_REQUESTS = 2*10**5
+        self.N_MEASURED_REQUESTS = 4*10**5
         self.GAMMA = .98
         self.ALPHA = .6
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
@@ -54,9 +54,10 @@ class Network():
         counter = 1
         for time, client, content in self.workload:
             if not counter%1000:
-                sys.stdout.write('\r{0:.2f}%'.format(100*counter/float(self.N_MEASURED_REQUESTS)))
+                sys.stdout.write('\r{0:.2f}%'.\
+                    format(100*counter/float(self.N_MEASURED_REQUESTS+self.N_WARMUP_REQUESTS)))
                 sys.stdout.flush()
-                sleep(1)
+                sleep(3)
 #            if not counter%100000:
 #                print 'round %d' % counter
             counter += 1
@@ -120,7 +121,8 @@ class Network():
         '''
 
         for node in path:
-            for v in self.neighbors2[node]:
+#            for v in self.neighbors2[node]:
+            for v in self.topology.neighbors(node):
                 nodes.append(v)
                 
         for v in nodes:
@@ -145,7 +147,7 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-                    value = popularity_u*(self.max_delay-(average_delay_u-average_delay+\
+                    value = (self.max_delay-(average_delay_u-average_delay+\
                             (len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
                     sum_value += value
                         
