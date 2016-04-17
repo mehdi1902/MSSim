@@ -12,8 +12,8 @@ class Network():
     def __init__(self, core, k, h):
         self.CACHE_BUDGET_FRACTION = .01
         self.N_CONTENTS = 3*10**5
-        self.N_WARMUP_REQUESTS = 2*10**5
-        self.N_MEASURED_REQUESTS = 4*10**5
+        self.N_WARMUP_REQUESTS = 3*10**5
+        self.N_MEASURED_REQUESTS = 6*10**5
         self.GAMMA = .98
         self.ALPHA = .6
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
@@ -57,8 +57,8 @@ class Network():
                 sys.stdout.write('\r{0:.2f}%'.\
                     format(100*counter/float(self.N_MEASURED_REQUESTS+self.N_WARMUP_REQUESTS)))
                 sys.stdout.flush()
-                sleep(3)
-#            if not counter%100000:
+#                sleep(10e-4)
+#            if not counter%10000:
 #                print 'round %d' % counter
             counter += 1
             self.event_run(time, client, content, measured=counter>self.N_WARMUP_REQUESTS+1)
@@ -121,9 +121,11 @@ class Network():
         '''
 
         for node in path:
-#            for v in self.neighbors2[node]:
-            for v in self.topology.neighbors(node):
-                nodes.append(v)
+            for v in self.neighbors2[node]:
+#            for v in self.topology.neighbors(node):
+                if v not in self.clients:
+                    nodes.append(v)
+        nodes = list(set(nodes))
                 
         for v in nodes:
             sum_value = 0
@@ -131,8 +133,12 @@ class Network():
                 average_delay = self.informations[v][content]['average_delay']
                 last_req = self.informations[v][content]['last_req']
                 popularity = self.GAMMA**((time-last_req)/10000.)*self.informations[v][content]['popularity']
-            
-            for u in nodes:
+            else:
+                average_delay = self.EXTERNAL_COST
+                last_req = time
+                popularity = 0
+                
+            for u in self.neighbors2[v]:
                 if content in self.informations[u]:
                     average_delay_u = self.informations[u][content]['average_delay']
                     last_req_u = self.informations[u][content]['last_req']
@@ -147,12 +153,13 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-                    value = average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST
+#                    value = popularity_u*(average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
+                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
                     sum_value += value
                         
-            if sum_value>=max_val:
-                max_val = popularity
-                winner = v
+                if sum_value>=max_val:
+                    max_val = sum_value
+                    winner = v
         return winner
         
         
@@ -271,7 +278,7 @@ class Cache():
         
         
 if __name__=='__main__':
-    n = Network(4,2,4)
+    n = Network(4,2,5)
     n.run()
     print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))

@@ -22,8 +22,8 @@ class StationaryWorkload(object):
         req_counter = 0
         t_event = 0.0
         while req_counter < self.n_warmup + self.n_measured:
-#            t_event += (random.expovariate(self.rate))
-            t_event += 1
+            t_event += (random.expovariate(self.rate))
+#            t_event += 1
             client = random.choice(self.clients)
             content = int(self.zipf.rv())
 #            client = 30

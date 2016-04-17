@@ -4,6 +4,13 @@ from matplotlib.pylab import plot
 import numpy as np
 
 
+'''
+Effect of CACHE_BUDGET
+Effect of GAMMA
+Effect of topology parameters
+
+'''
+
 def gamma_test(core, k, h, gamma_values):
     hit_rates = []
     delays = []
