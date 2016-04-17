@@ -10,8 +10,8 @@ from time import sleep
 
 class Network():
     def __init__(self, core, k, h):
-        self.CACHE_BUDGET_FRACTION = .004
-        self.N_CONTENTS = 3*10**3
+        self.CACHE_BUDGET_FRACTION = .01
+        self.N_CONTENTS = 3*10**5
         self.N_WARMUP_REQUESTS = 2*10**5
         self.N_MEASURED_REQUESTS = 4*10**5
         self.GAMMA = .98
@@ -147,8 +147,7 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-                    value = (self.max_delay-(average_delay_u-average_delay+\
-                            (len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+                    value = average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST
                     sum_value += value
                         
             if sum_value>=max_val:
@@ -272,7 +271,7 @@ class Cache():
         
         
 if __name__=='__main__':
-    n = Network(3,2,4)
+    n = Network(4,2,4)
     n.run()
     print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
