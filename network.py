@@ -65,6 +65,7 @@ class Network():
                                     
     def event_run(self, time, client, content, measured=True):
         path = self.shortest_path[client][self.clients[client]['server']]
+#        print path
         for node in path[1:]:
             delay = path.index(node)*self.INTERNAL_COST
             self.update_node_information(node, content, delay, time)
@@ -100,8 +101,9 @@ class Network():
             
         #Cache miss and decision for cache placement
         else:
-#            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
-            self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
+            if measured:
+    #            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
+                self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
             
             winner = self._winner_determination(path, content, time)
 #            print winner
