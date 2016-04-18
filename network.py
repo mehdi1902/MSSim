@@ -15,7 +15,7 @@ class Network():
         self.N_WARMUP_REQUESTS = 3*10**5
         self.N_MEASURED_REQUESTS = 6*10**5
         self.GAMMA = .98
-        self.ALPHA = .8
+        self.ALPHA = 1
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
         self.INTERNAL_COST = 2
         self.EXTERNAL_COST = 10
@@ -46,6 +46,7 @@ class Network():
 #        self.delays = {i:[] for i in range(1, 1+self.N_CONTENTS)}
         self.all_delays = []
 
+        self.scenario = 'AUC'
 
         
                                     
@@ -64,56 +65,78 @@ class Network():
             self.event_run(time, client, content, measured=counter>self.N_WARMUP_REQUESTS+1)
                                     
     def event_run(self, time, client, content, measured=True):
-        path = self.shortest_path[client][self.clients[client]['server']]
-#        print path
-        for node in path[1:]:
-            delay = path.index(node)*self.INTERNAL_COST
-            self.update_node_information(node, content, delay, time)
-
-            neighbor = self._neighbors_has_content(node, content)
-            
-            if self.cache[node].has_content(content):
+        if self.scenario=='AUC':
+            path = self.shortest_path[client][self.clients[client]['server']]
+    #        print path
+            for node in path[1:]:
+                delay = path.index(node)*self.INTERNAL_COST
+                self.update_node_information(node, content, delay, time)
+    
+                neighbor = self._neighbors_has_content(node, content)
+                
+                if self.cache[node].has_content(content):
+                    if measured:
+                        self.hits += 1
+    #                self.cache_hit[node][content] += 1
+    #                self.delays[content].append(delay)
+    #                print 'hit'
+                        self.all_delays.append(delay)
+                    break
+                
+    
+                #if content cached in neighbors            
+                
+                elif neighbor:
+    #                self.cache_hit[neighbor][content] += 1
+                    delay += [2,1][neighbor in self.topology.neighbors(node)]*self.INTERNAL_COST
+    
+                    self.update_node_information(neighbor, content, delay, time)
+                    if measured:
+                        self.hits += 1
+    #                    print 'hit'
+    #                    self.delays[content].append(delay)
+                        self.all_delays.append(delay)
+                    break
+                
+                # for CEE
+    #            self.cache[node].put_content(content)
+                
+            #Cache miss and decision for cache placement
+            else:
                 if measured:
-                    self.hits += 1
-#                self.cache_hit[node][content] += 1
-#                self.delays[content].append(delay)
-#                print 'hit'
-                    self.all_delays.append(delay)
-                break
-            
-
-            #if content cached in neighbors            
-            
-            elif neighbor:
-#                self.cache_hit[neighbor][content] += 1
-                delay += [2,1][neighbor in self.topology.neighbors(node)]*self.INTERNAL_COST
-
-                self.update_node_information(neighbor, content, delay, time)
-                if measured:
-                    self.hits += 1
-#                    print 'hit'
-#                    self.delays[content].append(delay)
-                    self.all_delays.append(delay)
-                break
-            
-            # for CEE
-#            self.cache[node].put_content(content)
-            
-        #Cache miss and decision for cache placement
-        else:
-            if measured:
-    #            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
-                self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
-            
-            winner = self._winner_determination(path, content, time)
-#            print winner
-            if winner:
-                self.cache[winner].put_content(content)
+        #            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
+                    self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
+                
+                winner = self._winner_determination(path, content, time)
+    #            print winner
+                if winner:
+                    self.cache[winner].put_content(content)
+                    
+                    
+                    
+        elif self.scenario=='CCE':
+            path = self.shortest_path[client][self.clients[client]['server']]
+            for node in path[1:]:
+                delay = path.index(node)*self.INTERNAL_COST
+    
+                neighbor = self._neighbors_has_content(node, content)
+                
+                if self.cache[node].has_content(content):
+                    if measured:
+                        self.hits += 1
+    #                self.cache_hit[node][content] += 1
+    #                self.delays[content].append(delay)
+    #                print 'hit'
+                        self.all_delays.append(delay)
+                    break
+                    
+                self.cache[node].put_content(content)
+                
             
 
     def _winner_determination(self, path, content, time):
         #TODO: complete value
-        max_val = 0
+        max_val =-10e10
         winner = None
         nodes = []
         
@@ -159,8 +182,9 @@ class Network():
 #                        value = popularity
                     
 #                    value = popularity_u*(average_distance_u-average_distance-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
-                    value = popularity_u*(self.max_delay-(average_distance+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+#                    value = popularity_u*(self.max_delay-(average_distance+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
 #                    value = popularity_u
+                    value = -popularity_u*(average_distance+len(self.shortest_path[u][v])-1)
                     sum_value += value
                         
             if sum_value>=max_val:
@@ -289,4 +313,7 @@ if __name__=='__main__':
     print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
-    
+    n.scenario = 'CCE'
+    n.run()
+    print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
+    print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
