@@ -113,7 +113,7 @@ class Network():
 
     def _winner_determination(self, path, content, time):
         #TODO: complete value
-        max_val = 10e10
+        max_val = 0
         winner = None
         nodes = []
         
@@ -141,6 +141,9 @@ class Network():
                 popularity = 0
                 
             for u in self.neighbors2[v]:
+                '''
+                cache of a content effects on nodes in neighbors2
+                '''
                 if content in self.informations[u]:
                     average_delay_u = self.informations[u][content]['average_delay']
                     last_req_u = self.informations[u][content]['last_req']
@@ -155,15 +158,14 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-                    value = popularity_u*(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
 #                    value = popularity_u*(average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
-#                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+#                    value = popularity_u
                     sum_value += value
                         
-                if sum_value<=max_val:
-#                    print 'yes'
-                    max_val = sum_value
-                    winner = v
+            if sum_value>=max_val:
+                max_val = sum_value
+                winner = v
         return winner
         
         
