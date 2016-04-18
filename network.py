@@ -122,6 +122,7 @@ class Network():
                 neighbor = self._neighbors_has_content(node, content)
                 
                 if self.cache[node].has_content(content):
+                    self.cache[node].get_content(content)
                     if measured:
                         self.hits += 1
     #                self.cache_hit[node][content] += 1
@@ -129,8 +130,12 @@ class Network():
     #                print 'hit'
                         self.all_delays.append(delay)
                     break
-                    
                 self.cache[node].put_content(content)
+            else:
+                if measured:
+                    delay = (len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST
+                    self.all_delays.append(delay)
+                
                 
             
 
@@ -308,11 +313,15 @@ class Cache():
         
         
 if __name__=='__main__':
-    n = Network(4,2,5)
+    print '------AUC------'
+    n = Network(4,2,5)    
     n.run()
     print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
+    
+    print '------CCE------'
+    n = Network(4,2,5)
     n.scenario = 'CCE'
     n.run()
     print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
