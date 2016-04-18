@@ -65,6 +65,7 @@ class Network():
                                     
     def event_run(self, time, client, content, measured=True):
         path = self.shortest_path[client][self.clients[client]['server']]
+#        print path
         for node in path[1:]:
             delay = path.index(node)*self.INTERNAL_COST
             self.update_node_information(node, content, delay, time)
@@ -100,8 +101,9 @@ class Network():
             
         #Cache miss and decision for cache placement
         else:
-#            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
-            self.all_delays.append(delay)
+            if measured:
+    #            self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
+                self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
             
             winner = self._winner_determination(path, content, time)
 #            print winner
@@ -111,7 +113,7 @@ class Network():
 
     def _winner_determination(self, path, content, time):
         #TODO: complete value
-        max_val = 0
+        max_val = 10e10
         winner = None
         nodes = []
         
@@ -153,11 +155,13 @@ class Network():
 #                    else:
 #                        value = popularity
                     
+                    value = popularity_u*(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
 #                    value = popularity_u*(average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
-                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+#                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
                     sum_value += value
                         
-                if sum_value>=max_val:
+                if sum_value<=max_val:
+#                    print 'yes'
                     max_val = sum_value
                     winner = v
         return winner
