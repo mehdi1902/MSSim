@@ -15,7 +15,7 @@ class Network():
         self.N_WARMUP_REQUESTS = 3*10**5
         self.N_MEASURED_REQUESTS = 6*10**5
         self.GAMMA = .98
-        self.ALPHA = .6
+        self.ALPHA = .8
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
         self.INTERNAL_COST = 2
         self.EXTERNAL_COST = 10
@@ -132,11 +132,11 @@ class Network():
         for v in nodes:
             sum_value = 0
             if content in self.informations[v]:
-                average_delay = self.informations[v][content]['average_delay']
+                average_distance = self.informations[v][content]['average_distance']
                 last_req = self.informations[v][content]['last_req']
                 popularity = self.GAMMA**((time-last_req)/10000.)*self.informations[v][content]['popularity']
             else:
-                average_delay = self.EXTERNAL_COST
+                average_distance = self.EXTERNAL_COST
                 last_req = time
                 popularity = 0
                 
@@ -145,7 +145,7 @@ class Network():
                 cache of a content effects on nodes in neighbors2
                 '''
                 if content in self.informations[u]:
-                    average_delay_u = self.informations[u][content]['average_delay']
+                    average_distance_u = self.informations[u][content]['average_distance']
                     last_req_u = self.informations[u][content]['last_req']
                     popularity_u = self.GAMMA**((time-last_req_u)/10000.)*self.informations[u][content]['popularity']
                     
@@ -158,8 +158,8 @@ class Network():
 #                    else:
 #                        value = popularity
                     
-#                    value = popularity_u*(average_delay_u-average_delay-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
-                    value = popularity_u*(self.max_delay-(average_delay+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
+#                    value = popularity_u*(average_distance_u-average_distance-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
+                    value = popularity_u*(self.max_delay-(average_distance+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
 #                    value = popularity_u
                     sum_value += value
                         
@@ -173,22 +173,22 @@ class Network():
         if content in self.informations[node]:
             info = self.informations[node][content]
             popularity = info['popularity']
-            average_delay = info['average_delay']
+            average_distance = info['average_distance']
             last_req = info['last_req']
 
             popularity = self.GAMMA**((time-last_req)/10000.)*popularity + 1            
             #TODO: correct beta value
             beta = max( min(self.GAMMA**((time-last_req)/10000.), .8), .1 )
 #            beta = .8
-            if average_delay!=None:
-                average_delay = (1-beta)*average_delay + beta*delay
+            if average_distance!=None:
+                average_distance = (1-beta)*average_distance + beta*delay
             else:
-                average_delay = delay
+                average_distance = delay
         else:
             popularity = 1
-            average_delay = delay
+            average_distance = delay
         self.informations[node][content] = {'popularity':popularity,
-                                            'average_delay':average_delay,
+                                            'average_distance':average_distance,
                                             'last_req':time}
         
     def _neighbors_of_neighbors(self, node):
