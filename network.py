@@ -11,7 +11,7 @@ from time import sleep
 class Network():
     def __init__(self, core, k, h):
         self.CACHE_BUDGET_FRACTION = .01
-        self.N_CONTENTS = 3*10**3
+        self.N_CONTENTS = 3*10**4
         self.N_WARMUP_REQUESTS = 3*10**5
         self.N_MEASURED_REQUESTS = 6*10**5
         self.GAMMA = 1
@@ -55,10 +55,9 @@ class Network():
         counter = 1
         for time, client, content in self.workload:
             if not counter%1000:
-                sys.stdout.write('\r{0:.2f}%'.\
-                    format(100*counter/float(self.N_MEASURED_REQUESTS+self.N_WARMUP_REQUESTS)))
-#                sys.stdout.write('\r{0:.3f}%'.\
-#                    format(100*self.hits/float(counter-self.N_WARMUP_REQUESTS)))
+                sys.stdout.write('\rProgress: {0:.2f}%\tHit rate: {1:.3f}%'.\
+                    format(100*counter/float(self.N_MEASURED_REQUESTS+self.N_WARMUP_REQUESTS), \
+                            (100*self.hits/float(counter-self.N_WARMUP_REQUESTS-10e-10))))
                 sys.stdout.flush()
 #                sleep(10e-4)
 #            if not counter%10000:
@@ -108,6 +107,9 @@ class Network():
                     self.all_delays.append((len(path)-1)*self.INTERNAL_COST + self.EXTERNAL_COST)
                 
                 winner = self._winner_determination(path, content, time)
+#                if winner not in path:
+#                    delay = (path.index(node)+[2,1][neighbor in self.topology.neighbors(node)])*self.INTERNAL_COST
+#                    self.update_node_information(winner, content, delay, time)
     #            print winner
                 if winner:
                     self.cache[winner].put_content(content)
@@ -198,7 +200,8 @@ class Network():
             ################################
             ##### Values for evict candidate
             content_prim = self.cache[v].get_replace_candidate()
-            if content_prim!=None:
+#            print v, content_prim
+            if content_prim!=None and content_prim in self.informations[v]:
                 last_req_prim = self.informations[v][content_prim]['last_req']
                 popularity_prim = self.informations[v][content_prim]['popularity']
                 popularity_prim *= self.GAMMA**(time-last_req_prim)
@@ -351,25 +354,25 @@ class Cache():
         
 if __name__=='__main__':
     
-#    print '------CCE------'
-#    n = Network(4,2,5)
-#    n.scenario = 'CCE'
-#    n.run()
-#    print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
-#    print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
+    print '------CCE------'
+    n = Network(4,2,5)
+    n.scenario = 'CCE'
+    n.run()
+    print '\nhit rate = %.2f%%'%(100*n.hits/float(n.N_MEASURED_REQUESTS))
+    print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
     
-#    print '------RND------'
-#    n = Network(4,2,5)
-#    n.scenario = 'RND'
-#    n.run()
-#    print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
-#    print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
+    print '------RND------'
+    n = Network(4,2,5)
+    n.scenario = 'RND'
+    n.run()
+    print '\nhit rate = %.2f%%'%(100*n.hits/float(n.N_MEASURED_REQUESTS))
+    print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
     print '------AUC------'
     n = Network(4,2,5)    
     n.run()
-    print '\nhit rate = %f'%(n.hits/float(n.N_MEASURED_REQUESTS))
+    print '\nhit rate = %.2f%%'%(100*n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
-    
+#    
     
