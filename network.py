@@ -11,9 +11,9 @@ from time import sleep
 class Network():
     def __init__(self, core, k, h):
         self.CACHE_BUDGET_FRACTION = .01
-        self.N_CONTENTS = 3*10**4
-        self.N_WARMUP_REQUESTS = 3*10**5
-        self.N_MEASURED_REQUESTS = 6*10**5
+        self.N_CONTENTS = 3*10**3
+        self.N_WARMUP_REQUESTS = 2*10**5
+        self.N_MEASURED_REQUESTS = 1*10**5
         self.GAMMA = 1
         self.ALPHA = 1
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
@@ -221,15 +221,13 @@ class Network():
                     popularity_u = self.GAMMA**((time-last_req_u)/10000.)*self.informations[u][content]['popularity']
                     
                     
-#                    value = popularity_u*(average_distance_u-average_distance-(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST)
-#                    value = popularity_u*(self.max_delay-(average_distance+(len(self.shortest_path[u][v])-1)*self.INTERNAL_COST))
-#                    value = popularity_u
-#                    value = -popularity_u*(average_distance+len(self.shortest_path[u][v])-1)
-#                    value = popularity_u
                     if u==v:
-                        value = popularity-popularity_prim
+#                        value = popularity-popularity_prim
+                        value = average_distance/float(self.max_delay) +\
+                            10*(popularity/float(popularity+popularity_prim+10e-10))
                     else:
-                        value = self.max_delay-(average_distance_u+len(self.shortest_path[u][v])-1)
+#                        value = self.max_delay-(average_distance_u+len(self.shortest_path[u][v])-1)
+                        value = (average_distance_u+len(self.shortest_path[u][v])-1)/float(self.max_delay)
                     sum_value += value
                         
             if sum_value>=max_val:
