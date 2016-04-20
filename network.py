@@ -10,10 +10,10 @@ from time import sleep
 
 class Network():
     def __init__(self, core, k, h):
-        self.CACHE_BUDGET_FRACTION = .01
-        self.N_CONTENTS = 3*10**3
-        self.N_WARMUP_REQUESTS = 2*10**5
-        self.N_MEASURED_REQUESTS = 1*10**5
+        self.CACHE_BUDGET_FRACTION = .004
+        self.N_CONTENTS = 3*10**4
+        self.N_WARMUP_REQUESTS = 5*10**5
+        self.N_MEASURED_REQUESTS = 2*10**5
         self.GAMMA = 1
         self.ALPHA = 1
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
@@ -57,7 +57,7 @@ class Network():
             if not counter%1000:
                 sys.stdout.write('\rProgress: {0:.2f}%\tHit rate: {1:.3f}%'.\
                     format(100*counter/float(self.N_MEASURED_REQUESTS+self.N_WARMUP_REQUESTS), \
-                            (100*self.hits/float(counter-self.N_WARMUP_REQUESTS-10e-10))))
+                            (100*self.hits/float(counter-self.N_WARMUP_REQUESTS+10e-10))))
                 sys.stdout.flush()
 #                sleep(10e-4)
 #            if not counter%10000:
