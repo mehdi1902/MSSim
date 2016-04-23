@@ -15,7 +15,7 @@ class Network():
         self.N_WARMUP_REQUESTS = 5*10**5
         self.N_MEASURED_REQUESTS = 2*10**5
         self.GAMMA = 1
-        self.ALPHA = 1
+        self.ALPHA = 2
         self._cache_budget = (self.CACHE_BUDGET_FRACTION*self.N_CONTENTS)
         self.INTERNAL_COST = 2
         self.EXTERNAL_COST = 10
@@ -33,7 +33,7 @@ class Network():
                         if self.topology.node[node]['type'] in ['root','intermediate']}
         
         self.cache = self.cache_placement()
-        self.informations = {node:{} for node in self.topology.node}
+        self.informations = {node: {} for node in self.topology.node}
         
         self.workload = StationaryWorkload(self.clients.keys(), self.N_CONTENTS, self.ALPHA, 
                                            n_warmup=self.N_WARMUP_REQUESTS,
@@ -83,8 +83,8 @@ class Network():
     #                print 'hit'
                         self.all_delays.append(delay)
                     break
-                
-    
+
+
                 ###############################
                 #if content cached in neighbors            
                 elif neighbor:
@@ -219,8 +219,8 @@ class Network():
                     average_distance_u = self.informations[u][content]['average_distance']
                     last_req_u = self.informations[u][content]['last_req']
                     popularity_u = self.GAMMA**((time-last_req_u)/10000.)*self.informations[u][content]['popularity']
-                    
-                    
+
+
                     if u==v:
 #                        value = popularity-popularity_prim
                         value = average_distance/float(self.max_delay) +\
@@ -257,6 +257,11 @@ class Network():
         self.informations[node][content] = {'popularity':popularity,
                                             'average_distance':average_distance,
                                             'last_req':time}
+        if 'total_req' in self.informations[node]:
+            total_req = self.informations[node]['total_req']
+        else:
+            total_req = 0
+        self.informations[node]['total_req'] = total_req+1
         
     def _neighbors_of_neighbors(self, node):
         nodes = []
@@ -368,7 +373,7 @@ if __name__=='__main__':
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
     
     print '------AUC------'
-    n = Network(4,2,5)    
+    n = Network(4,2,5)
     n.run()
     print '\nhit rate = %.2f%%'%(100*n.hits/float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f'%(sum(n.all_delays)/float(n.N_MEASURED_REQUESTS))
