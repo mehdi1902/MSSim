@@ -111,7 +111,7 @@ class Network():
                 if winner:
                     self.cache[winner].put_content(content)
 
-        elif self.scenario == 'CCE':
+        elif self.scenario == 'CEE':
             path = self.shortest_path[client][self.clients[client]['server']]
             for node in path[1:]:
                 delay = path.index(node) * self.INTERNAL_COST
@@ -343,9 +343,9 @@ class Cache():
 
 
 if __name__ == '__main__':
-    print '------CCE------'
+    print '------CEE------'
     n = Network(4, 2, 5)
-    n.scenario = 'CCE'
+    n.scenario = 'CEE'
     n.run()
     print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
