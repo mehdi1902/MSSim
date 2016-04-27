@@ -11,8 +11,8 @@ from time import sleep
 
 class Network():
     def __init__(self, core, k, h):
-        self.CACHE_BUDGET_FRACTION = .004
-        self.N_CONTENTS = 3 * 10 ** 4
+        self.CACHE_BUDGET_FRACTION = .001
+        self.N_CONTENTS = 3 * 10 ** 5
         self.N_WARMUP_REQUESTS = 4 * 10 ** 5
         self.N_MEASURED_REQUESTS = 1 * 10 ** 5
         self.GAMMA = 1
@@ -94,7 +94,6 @@ class Network():
                     self.update_node_information(neighbor, content, delay, time)
                     if measured:
                         self.hits += 1
-                        # print 'hit'
                         # self.delays[content].append(delay)
                         self.all_delays.append(delay)
                     break
@@ -164,12 +163,13 @@ class Network():
         So all of popularity values must updated
         '''
 
-        for node in path:
-            for v in self.neighbors2[node]:
-                # for v in self.topology.neighbors(node):
-                if v not in self.clients:
-                    nodes.append(v)
-        nodes = list(set(nodes))
+        # for node in path:
+        #     for v in self.neighbors2[node]:
+        #         # for v in self.topology.neighbors(node):
+        #         if v not in self.clients:
+        #             nodes.append(v)
+        # nodes = list(set(nodes))
+        nodes = path[1:]
 
         for v in nodes:
             if self.cache[v].cache_size == 0:
@@ -390,19 +390,19 @@ class Cache(object):
 
 
 if __name__ == '__main__':
-    # print '------CEE------'
-    # n = Network(4, 2, 5)
-    # n.scenario = 'CEE'
-    # n.run()
-    # print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
-    # print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
-    #
-    # print '------RND------'
-    # n = Network(4, 2, 5)
-    # n.scenario = 'RND'
-    # n.run()
-    # print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
-    # print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
+    print '------CEE------'
+    n = Network(4, 2, 5)
+    n.scenario = 'CEE'
+    n.run()
+    print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
+    print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
+
+    print '------RND------'
+    n = Network(4, 2, 5)
+    n.scenario = 'RND'
+    n.run()
+    print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
+    print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
 
     print '------AUC------'
     n = Network(4, 2, 5)
