@@ -13,8 +13,8 @@ class Network():
     def __init__(self, core, k, h):
         self.CACHE_BUDGET_FRACTION = .004
         self.N_CONTENTS = 3 * 10 ** 4
-        self.N_WARMUP_REQUESTS = 5 * 10 ** 5
-        self.N_MEASURED_REQUESTS = 2 * 10 ** 5
+        self.N_WARMUP_REQUESTS = 4 * 10 ** 5
+        self.N_MEASURED_REQUESTS = 1 * 10 ** 5
         self.GAMMA = 1
         self.ALPHA = 1
         self._cache_budget = (self.CACHE_BUDGET_FRACTION * self.N_CONTENTS)
@@ -39,13 +39,15 @@ class Network():
         self.workload = StationaryWorkload(self.clients.keys(), self.N_CONTENTS, self.ALPHA,
                                            n_warmup=self.N_WARMUP_REQUESTS,
                                            n_measured=self.N_MEASURED_REQUESTS)
-        self.shortest_path = self.symmetrify_paths(nx.all_pairs_dijkstra_path(self.topology))
+        self.shortest_path = self._symmetrify_paths(nx.all_pairs_dijkstra_path(self.topology))
         self.neighbors2 = {node: self._neighbors_of_neighbors(node) for node in self.topology.node}
 
         self.hits = 0
         #        self.cache_hit = {node:{i:0 for i in range(1, 1+self.N_CONTENTS)} for node in self.topology.node}
         #        self.delays = {i:[] for i in range(1, 1+self.N_CONTENTS)}
         self.all_delays = []
+        
+        self.cnt = 0
 
         self.scenario = 'AUC'
 
@@ -53,7 +55,7 @@ class Network():
         # TODO: separete warmup and test
         counter = 1
         for time, client, content in self.workload:
-            if not counter % 1000:
+            if not counter % 10000:
                 sys.stdout.write('\rProgress: {0:.2f}%\t\tHit rate: {1:.3f}%'. \
                                  format(100 * counter / float(self.N_MEASURED_REQUESTS + self.N_WARMUP_REQUESTS), \
                                         (100 * self.hits / float(counter - self.N_WARMUP_REQUESTS + 10e-10))))
@@ -79,16 +81,16 @@ class Network():
                         self.hits += 1
                         # self.cache_hit[node][content] += 1
                         # self.delays[content].append(delay)
-                        # print 'hit'
-                        self.all_delays.append(delay)
+                        # self.all_delays.append(delay)
                     break
-
                 ###############################
                 # if content cached in neighbors
-                elif neighbor:
+                elif neighbor is not False:
                     # self.cache_hit[neighbor][content] += 1
                     delay += [2, 1][neighbor in self.topology.neighbors(node)] * self.INTERNAL_COST
 
+                    semi_path = self.shortest_path[node][neighbor]
+                    # TODO: update informations of neighbor with cached content
                     self.update_node_information(neighbor, content, delay, time)
                     if measured:
                         self.hits += 1
@@ -104,10 +106,6 @@ class Network():
                     self.all_delays.append((len(path) - 1) * self.INTERNAL_COST + self.EXTERNAL_COST)
 
                 winner = self._winner_determination(path, content, time)
-                # if winner not in path:
-                #    delay = (path.index(node)+[2,1][neighbor in self.topology.neighbors(node)])*self.INTERNAL_COST
-                #                    self.update_node_information(winner, content, delay, time)
-                #            print winner
                 if winner:
                     self.cache[winner].put_content(content)
 
@@ -137,8 +135,6 @@ class Network():
             path = self.shortest_path[client][self.clients[client]['server']]
             for node in path[1:]:
                 delay = path.index(node) * self.INTERNAL_COST
-
-                neighbor = self._neighbors_has_content(node, content)
 
                 if self.cache[node].has_content(content):
                     self.cache[node].get_content(content)
@@ -192,15 +188,37 @@ class Network():
             ################################
             # Values for evict candidate
             content_prim = self.cache[v].get_replace_candidate()
+
+
+            # Replacement: evict least popular content
+            # min_pop = 10e10
+            # min_pop_candidates = []
+            # if len(self.cache[v].contents):
+            #    for content in self.cache[v].contents:
+            #        if content in self.informations[v]:
+            #            p = self.informations[v][content]['popularity']
+            # #                        print p
+            #            if min_pop > p:
+            #                min_pop = p
+            #                min_pop_candidates = [content]
+            #            elif min_pop==p:
+            #                min_pop_candidates.append(content)
+            #            shuffle(min_pop_candidates)
+            #            content_prim = min_pop_candidates[0]
+            # else: content_prim=None
+                
+            
             #            print v, content_prim
             if content_prim is not None and content_prim in self.informations[v]:
                 last_req_prim = self.informations[v][content_prim]['last_req']
                 popularity_prim = self.informations[v][content_prim]['popularity']
                 popularity_prim *= self.GAMMA ** (time - last_req_prim)
                 popularity_prim /= self.informations[v]['total_req']
+                average_distance_prim = self.informations[v][content_prim]['average_distance']
             #                value = - popularity_prim
             else:
                 # value = 0
+                average_distance_prim = 1
                 popularity_prim = 0
 
             for u in self.neighbors2[v]:
@@ -210,15 +228,18 @@ class Network():
                 if content in self.informations[u]:
                     average_distance_u = self.informations[u][content]['average_distance']
                     last_req_u = self.informations[u][content]['last_req']
-                    popularity_u = self.GAMMA ** ((time - last_req_u) / 10000.) * self.informations[u][content][
-                        'popularity']
+                    popularity_u = self.GAMMA ** ((time - last_req_u) / 10000.) * self.informations[u][content]['popularity']
 
                     if u == v:
+                        value = popularity - popularity_prim
                         # value = (self.max_delay-average_distance) + (popularity-popularity_prim)
-                        value = average_distance / float(self.max_delay) + \
-                                10 * (popularity / float(popularity + popularity_prim + 10e-10))
+                        # value =
+                        # value = (-average_distance / float(self.max_delay) +\
+                        #         10*(popularity*average_distance /float(popularity*average_distance + popularity_prim*average_distance_prim + 10e-10)))
                     else:
-                        value = (average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
+                        value = 0
+#                        value = popularity_u
+                        # value = -(average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
                     sum_value += value
 
             if sum_value >= max_val:
@@ -235,10 +256,10 @@ class Network():
 
             popularity = self.GAMMA ** ((time - last_req) / 10000.) * popularity + 1
             # TODO: correct beta value
-            beta = max(min(self.GAMMA ** ((time - last_req) / 10000.), .8), .1)
-            #            beta = .8
-            if average_distance != None:
-                average_distance = (1 - beta) * average_distance + beta * delay
+            # beta = max(min(self.GAMMA ** ((time - last_req) / 10000.), .8), .1)
+            beta = .8
+            if average_distance is not None:
+                average_distance = beta * average_distance + (1 - beta) * delay
             else:
                 average_distance = delay
         else:
@@ -254,23 +275,49 @@ class Network():
         self.informations[node]['total_req'] = total_req + 1
 
     def _neighbors_of_neighbors(self, node):
+        """
+
+        Parameters
+        ----------
+        node
+
+        Returns
+        -------
+        2 level neighbors of node
+        """
         nodes = []
         for n in self.topology.neighbors(node):
-            for neighbor in self.topology.neighbors(n):
-                if self.topology.node[neighbor]['type'] in ['intermediate', 'core']:
-                    nodes.append(neighbor)
-            nodes.append(n)
+            if self.topology.node[n]['type'] is not 'root':
+                for neighbor in self.topology.neighbors(n):
+                    if self.topology.node[neighbor]['type'] is 'intermediate':
+                        nodes.append(neighbor)
+                if self.topology.node[n]['type'] is 'intermediate':
+                    nodes.append(n)
+        # if node in nodes:
+        #     nodes.remove(node)
         neighbors = list(set(nodes))
         shuffle(neighbors)
         return neighbors
 
     def _neighbors_has_content(self, node, content):
+        """
+
+        Parameters
+        ----------
+        node
+        content
+
+        Returns
+        -------
+        neighbor id of content owner or False if nobody has it
+        """
         neighbors = self.neighbors2[node]
         for neighbor in neighbors:
-            if self.cache[node].has_content(content):
+            if self.cache[neighbor].has_content(content):
                 return neighbor
+        return False
 
-    def symmetrify_paths(self, shortest_paths):
+    def _symmetrify_paths(self, shortest_paths):
         for u in shortest_paths:
             for v in shortest_paths[u]:
                 shortest_paths[u][v] = list(reversed(shortest_paths[v][u]))
@@ -295,15 +342,15 @@ class Network():
     def cache_placement(self):
         cache_budget = self._cache_budget
         betweenness = nx.betweenness_centrality(self.topology)
-        total_betweenness = sum(betweenness.values())
-        return {node: Cache(int(round(cache_budget * betweenness[node] / float(total_betweenness)))) \
+        total_betweenness = float(sum(betweenness.values()))
+        return {node: Cache(int(round(cache_budget * betweenness[node] / total_betweenness)))
                 for node in self.routers}
 
 
-class Cache():
-    '''
+class Cache(object):
+    """
     Cache with LRU for replacement
-    '''
+    """
 
     def __init__(self, cache_size):
         self.contents = []
@@ -343,23 +390,22 @@ class Cache():
 
 
 if __name__ == '__main__':
-    print '------CEE------'
-    n = Network(4, 2, 5)
-    n.scenario = 'CEE'
-    n.run()
-    print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
-    print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
-
-    print '------RND------'
-    n = Network(4, 2, 5)
-    n.scenario = 'RND'
-    n.run()
-    print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
-    print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
+    # print '------CEE------'
+    # n = Network(4, 2, 5)
+    # n.scenario = 'CEE'
+    # n.run()
+    # print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
+    # print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
+    #
+    # print '------RND------'
+    # n = Network(4, 2, 5)
+    # n.scenario = 'RND'
+    # n.run()
+    # print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
+    # print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
 
     print '------AUC------'
     n = Network(4, 2, 5)
     n.run()
     print '\nhit rate = %.2f%%' % (100 * n.hits / float(n.N_MEASURED_REQUESTS))
     print 'average delay = %f' % (sum(n.all_delays) / float(n.N_MEASURED_REQUESTS))
-#

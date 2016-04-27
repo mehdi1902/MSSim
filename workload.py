@@ -2,6 +2,7 @@
 from stats import TruncatedZipfDist
 import random
 
+
 class StationaryWorkload(object):
     def __init__(self, clients, n_contents, alpha, 
                     n_warmup, n_measured, rate=1.0, seed=None, **kwargs):
@@ -15,9 +16,8 @@ class StationaryWorkload(object):
         self.rate = rate
         self.n_warmup = n_warmup
         self.n_measured = n_measured
-#        random.seed(seed)
-        
-        
+        random.seed(seed)
+
     def __iter__(self):
         req_counter = 0
         t_event = 0.0
