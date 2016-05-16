@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from network import *
-from matplotlib.pylab import plot
+import matplotlib.pylab as plt
 import numpy as np
+
 
 
 '''
@@ -81,36 +82,47 @@ def alpha_test(core, k, h, alpha_values, scenario):
 #    plot(gamma_values, hit_rates)
 #    plot(gamma_values)
         
-        
-        
-        
-        
+
 if __name__=='__main__':
-#    network = Network(4,2,4)
-    
     core = 4
     k = 2
-    h = 4    
+    h = 4
+
+    network = Network(core, k, h)
     
 #    gamma_values = np.array(range(50, 102, 2))/100.
 #    hit_rates, delays = gamma_test(core, k, h, gamma_values)
 #    
 
-#    budget_values = [.002, .004, .006, .008, .01, .03, .05, .07, .1, .3, .5, .7, .9, 1]
-#    hit_rates, delays = cache_budget_test(core, k, h, budget_values)
+    # budget_values = [.002, .004, .006, .008, .01, .03, .05, .07, .1, .3, .5, .7, .9, 1]
+    budget_values = np.array(range(0, 100, 5))/10000.
+    # hit_rates, delays = cache_budget_test(core, k, h, budget_values)
 
 
-    H = []
-    D = []
-    budget_values = [.001, .002, .004, .006, .008, .01, .02, .03, .04, .05, .06, .07, .08, .09, 
-                     .1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
-    for scenario in ['CEE', 'RND', 'AUC']:
-#        alpha_values = np.array(range(1, 30))/10.
+#    H = []
+#    D = []
+    for scenario in ['LCD']:
+        # alpha_values = np.array(range(1, 30))/10.
         hit_rates, delays = cache_budget_test(core, k, h, budget_values, scenario)
-#        hit_rates, delays = alpha_test(core, k, h, alpha_values, scenario)
+        # hit_rates, delays = alpha_test(core, k, h, alpha_values, scenario)
         H.append(hit_rates)
         D.append(delays)
-
+        
+    plt.plot(budget_values, H[0], label='CEE')
+    plt.plot(budget_values, H[1], label='RND')
+    plt.plot(budget_values, H[2], label='AUC')
+    plt.plot(budget_values, H[3], label='LCD')
+    plt.legend(loc='lower right')
+    plt.savefig('./Results/%s-budget-hitrate-alpha=%d-gamma=%d' % (scenario, network.ALPHA, network.GAMMA))
+    plt.clf()
+    
+    plt.plot(budget_values, D[0], label='CEE')
+    plt.plot(budget_values, D[1], label='RND')
+    plt.plot(budget_values, D[2], label='AUC')
+    plt.plot(budget_values, D[3], label='LCD')
+    plt.legend(loc='upper right')
+    plt.savefig('./Results/%s-budget-delay-alpha=%d-gamma=%d' % (scenario, network.ALPHA, network.GAMMA))
+    plt.clf()
 
 
 
