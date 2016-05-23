@@ -16,7 +16,7 @@ class Network():
         self.N_WARMUP_REQUESTS = 4 * 10 ** 4
         self.N_MEASURED_REQUESTS = 1 * 10 ** 4
         self.GAMMA = 1
-        self.ALPHA = 1
+        self.ALPHA = .8
 
         self.INTERNAL_COST = 2
         self.EXTERNAL_COST = 10
@@ -48,6 +48,7 @@ class Network():
         #        self.cache_hit = {node:{i:0 for i in range(1, 1+self.N_CONTENTS)} for node in self.topology.node}
         #        self.delays = {i:[] for i in range(1, 1+self.N_CONTENTS)}
         self.all_delays = []
+        self.winners = []
 
         self.scenario = 'AUC'
 
@@ -104,6 +105,7 @@ class Network():
                     break
 
             # Cache miss and decision for cache placement
+            #     self.winners.append(None)
             else:
                 if measured:
                     # self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
@@ -111,6 +113,7 @@ class Network():
                     self.all_delays.append(delay)
 
                 winner = self._winner_determination(path, content, time)
+                self.winners.append((content, winner))
                 if winner is not None:
                     self.cache[winner].put_content(content)
 
@@ -215,6 +218,7 @@ class Network():
         max_val = -10e10
         winner = None
         nodes = []
+        print_res = False
 
         '''
         ** Last state of popularity is not suitable for comparing
@@ -232,13 +236,16 @@ class Network():
 
         #############################
         # v is caching node candidate
-        print '--------------'
+        if print_res:
+            print '--------------'
         for v in nodes:
             ################################
             # If node doesn't have cache
             if self.cache[v].cache_size == 0:
                 continue
+
             sum_value = 0
+            # print sum_value
 
             ###############################
             # Information of candidate node
@@ -250,23 +257,6 @@ class Network():
             # Values for evict candidate
             content_prim = self.cache[v].get_replace_candidate()
 
-            # ## Replacement: evict least popular content
-            # min_pop = 10e10
-            # min_pop_candidates = []
-            # if len(self.cache[v].contents)==self.cache[v].cache_size:
-            #     for content in self.cache[v].contents:
-            #         if content in self.informations[v]:
-            #             p = self.informations[v][content]['popularity']
-            #     #                        print p
-            #             if min_pop > p:
-            #                 min_pop = p
-            #                 min_pop_candidates = [content]
-            #             elif min_pop==p:
-            #                 min_pop_candidates.append(content)
-            #             shuffle(min_pop_candidates)
-            #             content_prim = min_pop_candidates[0]
-            # else: content_prim = None
-
             ##################################
             # Information of evicted candidate
             if content_prim is not None:
@@ -275,6 +265,7 @@ class Network():
                 average_distance_prim, popularity_prim, last_req_prim = 1, -10e5, time
 
             # print content, popularity, '----', content_prim, popularity_prim
+
             for other in nodes:
                 for u in self.neighbors2[other]:
                     '''
@@ -286,36 +277,44 @@ class Network():
                         if other == v and u == v:
                             ########################
                             # caching node candidate
+                            d = 5 - self.topology.node[v]['depth']
 
                             # (self.max_delay - average_distance)
-                            print v, self.topology.node[v]['depth'], popularity/total_req
-                            value = (popularity-popularity_prim/total_req)*average_distance + 10*(self.cache[v].cache_size != len(self.cache[v].contents))# - popularity_prim/total_req
+                            # value = (popularity/total_req) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
+                            value = (popularity/average_distance) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
+                            # print 'val:', (popularity / total_req) #* average_distance #+ 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
                             # value = (popularity * average_distance) - (popularity_prim * average_distance_prim)
                             # value = (self.max_delay-average_distance) + (popularity-popularity_prim)
                             # value =
                             # value = (-average_distance / float(self.max_delay) -\
                             # 10*(popularity*average_distance /float(popularity*average_distance + popularity_prim*average_distance_prim + 10e-10)))
-                        # elif other == u and other != v:
-                        #     ###############################
-                        #     # Just other nodes (themselves)
-                        #     if u in self.routers:
-                        #         value = 0
-                        #         if u in path:
-                        #             value = popularity_u/total_req_u
-                        #         # value = (popularity_u * average_distance_u)
-                        #         # value = popularity_u
-                        #         # value = -(average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
+                            if print_res:
+                                print v, self.topology.node[v]['depth'], value, average_distance
+
+                        elif other == u and other != v:
+                            ###############################
+                            # Just other nodes (themselves)
+                            if u in self.routers:
+                                value = 0
+                                if u in path:
+                                    value = popularity_u/(average_distance_u+[4,2][u in self.topology.neighbors(v)])
+                                # value = (popularity_u * average_distance_u)
+                                # value = popularity_u
+                                # value = -(average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
                         else:
                             value = 0
                         sum_value += value
 
-#            if sum_value > 0:
-#                print sum_value
+            # if sum_value > 0:
+            #     print sum_value
             if sum_value >= max_val:
                 max_val = sum_value
                 winner = v
-
-        print 'winner:', winner, self.topology.node[winner]['depth']
+            # sum_value = 0
+        if print_res and self.topology.node[winner]['depth']<5:
+            print 'winner:', winner, self.topology.node[winner]['depth']
+        # if self.topology.node[winner]['depth']<5:
+        #     print winner, self.topology.node[winner]['depth']
         return winner if max_val > 0 else None
 
     def update_node_information(self, node, content, delay, time):
@@ -493,25 +492,24 @@ class Cache(object):
 
 if __name__ == '__main__':
     n = Network(4, 2, 6)
-    # print '------CEE------'
-    # n.scenario = 'CEE'
-    # n.run()
-    # n.write_result()
-    # #
-    # print '------RND------'
-    # n.reset()
-    # n.scenario = 'RND'
-    # n.run()
-    # n.write_result()
-    # #
-    # print '------LCD------'
-    # n.reset()
-    # n.scenario = 'LCD'
-    # n.run()
-    # n.write_result()
+    print '------CEE------'
+    n.scenario = 'CEE'
+    n.run()
+    n.write_result()
+    #
+    print '------RND------'
+    n.reset()
+    n.scenario = 'RND'
+    n.run()
+    n.write_result()
+    #
+    print '------LCD------'
+    n.reset()
+    n.scenario = 'LCD'
+    n.run()
+    n.write_result()
 
     print '------AUC----on-path--'
-    # n = Network(4, 2, 5)
     n.reset()
     n.on_path = True
     n.scenario = 'AUC'
@@ -520,7 +518,6 @@ if __name__ == '__main__':
 
 
     print '------AUC------'
-    # n = Network(4, 2, 5)
     n.reset()
     n.on_path = False
     n.scenario = 'AUC'
