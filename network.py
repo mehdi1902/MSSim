@@ -54,6 +54,8 @@ class Network():
 
         self.cnt = 0
 
+        self.ind = []
+
     def run(self):
         self._cache_budget = (self.CACHE_BUDGET_FRACTION * self.N_CONTENTS)
         self.cache = self.cache_placement()
@@ -238,6 +240,7 @@ class Network():
         # v is caching node candidate
         if print_res:
             print '--------------'
+        ind = self.ind
         for v in nodes:
             ################################
             # If node doesn't have cache
@@ -262,7 +265,7 @@ class Network():
             if content_prim is not None:
                 average_distance_prim, popularity_prim, last_req_prim, _ = self.get_node_information(v, content_prim, time)
             else:
-                average_distance_prim, popularity_prim, last_req_prim = 1, -10e5, time
+                average_distance_prim, popularity_prim, last_req_prim = 1, +10e5, time
 
             # print content, popularity, '----', content_prim, popularity_prim
 
@@ -277,11 +280,12 @@ class Network():
                         if other == v and u == v:
                             ########################
                             # caching node candidate
-                            d = 5 - self.topology.node[v]['depth']
+                            # d = 5 - self.topology.node[v]['depth']
 
                             # (self.max_delay - average_distance)
                             # value = (popularity/total_req) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
-                            value = (popularity/average_distance) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
+                            # value = (popularity/average_distance) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
+                            value = (ind[0]*popularity**ind[1] - ind[2]*popularity_prim**ind[3]) / (ind[4]*total_req**ind[5]) * ind[6]*average_distance**ind[7]
                             # print 'val:', (popularity / total_req) #* average_distance #+ 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
                             # value = (popularity * average_distance) - (popularity_prim * average_distance_prim)
                             # value = (self.max_delay-average_distance) + (popularity-popularity_prim)
@@ -296,8 +300,9 @@ class Network():
                             # Just other nodes (themselves)
                             if u in self.routers:
                                 value = 0
-                                if u in path:
-                                    value = popularity_u/(average_distance_u+[4,2][u in self.topology.neighbors(v)])
+                                if u in path or not self.on_path:
+                                    # value = popularity_u/(average_distance_u+[4,2][u in self.topology.neighbors(v)])
+                                    value = (ind[8]*popularity_u**ind[9]) / (ind[10]*total_req_u**ind[11]) * (ind[12]*total_req_u**ind[13])
                                 # value = (popularity_u * average_distance_u)
                                 # value = popularity_u
                                 # value = -(average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
