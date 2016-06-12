@@ -159,14 +159,22 @@ class Network():
             path = self.shortest_path[client][self.clients[client]['server']]
             for node in path[1:]:
                 delay = path.index(node) * self.INTERNAL_COST
-
+                neighbor = self._neighbors_has_content(node, content)
                 if self.cache[node].has_content(content):
                     self.cache[node].get_content(content)
                     if measured:
                         self.hits += 1
                         self.all_delays.append(delay)
                     break
-
+                
+                elif neighbor is not False and self.on_path is False:
+                    self.cache[neighbor].get_content(content)
+                    delay += [2, 1][neighbor in self.topology.neighbors(node)] * self.INTERNAL_COST
+                    if measured:
+                        self.hit()
+                        # self.delays[content].append(delay)
+                        self.all_delays.append(delay)
+                    break
             else:
                 if measured:
                     delay = self.max_delay#(len(path) - 1) * self.INTERNAL_COST + self.EXTERNAL_COST
@@ -519,10 +527,12 @@ class Cache(object):
 if __name__ == '__main__':
     n = Network(4, 2, 6)
     
-    scenarios = [('CEE', True),
-                 ('CEE', False),
-                 ('AUC', True),
-                 ('AUC', False),
+    scenarios = [#('CEE', True),
+#                 ('CEE', False),
+#                 ('AUC', True),
+#                 ('AUC', False),
+                 ('RND', True),
+                 ('RND', False),
                 ]
     for (scr, op) in scenarios:
         print '------%s-%s-----'%(scr, ['Off', 'On'][op])
