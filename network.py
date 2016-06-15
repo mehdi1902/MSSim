@@ -54,8 +54,8 @@ class Network():
         #        self.cache_hit = {node:{i:0 for i in range(1, 1+self.N_CONTENTS)} for node in self.topology.node}
         #        self.delays = {i:[] for i in range(1, 1+self.N_CONTENTS)}
         self.all_delays = []
+        self.cr_hit = []
         self.winners = []
-        self.winners2 = []
 
         self.scenario = 'AUC'
 
@@ -73,8 +73,8 @@ class Network():
                                            n_measured=self.N_MEASURED_REQUESTS)
         self.hits = 0
         self.all_delays = []
+        self.cr_hit = []
         self.winners = []
-        self.winners2 = []
         
         counter = 1
         for time, client, content in self.workload:
@@ -122,7 +122,7 @@ class Network():
                     break
 
             # Cache miss and decision for cache placement
-            #     self.winners.append(None)
+            #     self.cr_hit.append(None)
             else:
                 if measured:
                     # self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
@@ -130,7 +130,7 @@ class Network():
                     self.all_delays.append(delay)
 
                 winner = self._winner_determination(path, content, time)
-                self.winners2.append((content, winner))
+                self.winners.append((content, winner))
                 if winner is None:
                     print 'Winner is None!!'
                 if winner is not None:
@@ -147,7 +147,7 @@ class Network():
                     self.cache[node].get_content(content)
                     if measured:
                         self.hit(content, node)
-#                        self.winners.append((content, node))
+#                        self.cr_hit.append((content, node))
                         self.all_delays.append(delay)
                     break
                     
@@ -315,7 +315,7 @@ class Network():
                     ########################
                     # caching node candidate
                     # d = 5 - self.topology.node[v]['depth']
-                    value = popularity / average_distance# + 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
+                    value = popularity #/ average_distance# + 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
                     # (self.max_delay - average_distance)
                     # value = (popularity/total_req) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
                     # value = (popularity/average_distance) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
@@ -492,8 +492,8 @@ class Network():
         self.hits = 0
         self.all_delays = []
         self.informations = {node: {} for node in self.topology.node}
+        self.cr_hit = []
         self.winners = []
-        self.winners2 = []
 
     def write_result(self):
         print '\nhit rate = %.2f%%' % (100 * self.hits / float(self.N_MEASURED_REQUESTS))
@@ -504,7 +504,9 @@ class Network():
         if len(args)==2:
             content = args[0]
             router = args[1]
-            n.winners.append((content, router))
+            n.cr_hit.append((content, router))
+#            if self.scenario == 'AUC':
+#                self.informations[router][content]['popularity'] *= 20
         # self.cache_hit[node][content] += 1
         # self.delays[content].append(delay)
         # self.all_delays.append(delay)
@@ -553,7 +555,7 @@ class Cache(object):
 
 
 if __name__ == '__main__':
-    n = Network(4, 2, 6)
+    n = Network(4, 2, 5)
     
     scenarios = [
 #                 ('CEE', True),
@@ -568,12 +570,22 @@ if __name__ == '__main__':
 #    n.relative_popularity = True
 #    n.cache_placement = 'betweenness'
 #    
+    RP = [
+        True, 
+#        False,
+        ]
+        
+    CP = [
+#        'uniform', 
+        'betweenness',
+        ]
+        
     i = 0
-    fig = plt.figure()
+#    fig = plt.figure()
 
     for (scr, op) in scenarios:
-        for rp in [True, False]:
-            for cp in ['uniform', 'betweenness']:
+        for rp in RP:
+            for cp in CP:
 #                n = Network(4, 2, 6)
                 print '------%s-%s-----'%(scr, ['Off', 'On'][op])
                 n.reset()
@@ -589,23 +601,23 @@ if __name__ == '__main__':
                     
         
                   
-                cr_map = content_router_map(range(500), n.routers.keys(), n.winners)
-                cr_map2 = content_router_map(range(500), n.routers.keys(), n.winners2)
+                cr_map = content_router_map(range(500), n.routers.keys(), n.cr_hit)
+                cr_map2 = content_router_map(range(500), n.routers.keys(), n.winners)
                 
-                a=fig.add_subplot(2,8,i+1)
+                a=fig.add_subplot(len(RP),4*len(CP),i+1)
                 a.set_title('hits')
                 imshow(cr_map/np.max(cr_map)>0)
                 
-                a=fig.add_subplot(2,8,i+2)
-                a.set_title('winners')
+                a=fig.add_subplot(len(RP),4*len(CP),i+2)
+                a.set_title('cr_hit')
                 imshow(cr_map2/np.max(cr_map2)>0)
                 
-                a=fig.add_subplot(2,8,i+3)
+                a=fig.add_subplot(len(RP),4*len(CP),i+3)
                 a.set_title('normalized hits')
                 imshow(normalize_contents(cr_map/np.max(cr_map)))
                 
-                a=fig.add_subplot(2,8,i+4)
-                a.set_title('normalized winners')
+                a=fig.add_subplot(len(RP),4*len(CP),i+4)
+                a.set_title('normalized cr_hit')
                 imshow(normalize_contents(cr_map2/np.max(cr_map2)))
 
                 i += 4
