@@ -4,6 +4,7 @@ from workload import *
 from random import shuffle
 import fnss
 import networkx as nx
+import sqlite3 as sql
 # from cache import *
 from skimage.io import imshow
 import sys
@@ -36,7 +37,8 @@ class Network():
         self.max_delay = h * self.INTERNAL_COST + self.EXTERNAL_COST
 
         # Uniform cache assignement
-
+        self.core, self.k, self.h = core, k, h
+        
         self.topology = self._create_topology(core, k, h)
         self.clients = {node: self.topology.node[node] for node in self.topology.node
                         if self.topology.node[node]['type'] == 'leaf'}
@@ -219,7 +221,7 @@ class Network():
                     if idx > 1:
                         self.cache[path[idx-1]].put_content(content)
                     if measured:
-                        self.hit()
+                        self.hit(content, node)
                         # self.cache_hit[node][content] += 1
                         # self.delays[content].append(delay)
                         # print 'hit'
@@ -323,45 +325,17 @@ class Network():
                 '''
                         
                 if other == v:# and u == v:
-                    ########################
-                    # caching node candidate
-                    # d = 5 - self.topology.node[v]['depth']
-                    value = popularity + 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
-                    # (self.max_delay - average_distance)
-                    # value = (popularity/total_req) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
-                    # value = (popularity/average_distance) + 10*(self.cache[v].cache_size != len(self.cache[v].contents))
-#                    value = (ind[0]*popularity**ind[1] - ind[2]*popularity_prim**ind[3]) / (ind[4]*total_req**ind[5]) * ind[6]*average_distance**ind[7]
-
-
-#                    value = popularity/float(total_req)#*average_distance**.1
-                    # print 'val:', (popularity / total_req) #* average_distance #+ 10 * (self.cache[v].cache_size != len(self.cache[v].contents))
-#                    value = (popularity * average_distance) - (popularity_prim * average_distance_prim)
-#                    value = (self.max_delay-average_distance) * (popularity-popularity_prim)
-                    # value =
-                    # value = (-average_distance / float(self.max_delay) -\
-                    # 10*(popularity*average_distance /float(popularity*average_distance + popularity_prim*average_distance_prim + 10e-10)))
+                    #v_value
+                    value = popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
+                    #v_value
                     if print_res:
                         print v, self.topology.node[v]['depth'], value, average_distance
-
-#                    elif other == u and other != v:
-#                        ###############################
-#                        # Just other nodes (themselves)
-#                        if u in self.routers:
-#                            value = 0
-##                                value = popularity_u/(average_distance_u+[4,2][u in self.topology.neighbors(v)])
-#                            if u in path or not self.on_path:
-#                                value = 0
-#                                
-##                                    value = (ind[8]*popularity_u**ind[9]) / (ind[10]*total_req_u**ind[11]) * (ind[12]*total_req_u**ind[13])
-##                                    value = popularity / float(total_req_u**.5)
-#                            # value = (popularity_u * average_distance_u)
-#                            # value = popularity_u
-#                            # value = -(average_distance_u + len(self.shortest_path[u][v]) - 1) / float(self.max_delay)
                 else:
                     if content in self.informations[other]:
                         average_distance_u, popularity_u, last_req_u, total_req_u = self.get_node_information(other, content, time)
-#                
+                    #u_value
                     value = 0
+                    #u_value
 #                    value = popularity_u / (average_distance_u+[1,2][other in self.topology.neighbors(v)]*self.INTERNAL_COST)
                 sum_value += value
 
@@ -518,7 +492,93 @@ class Network():
         # self.delays[content].append(delay)
         # self.all_delays.append(delay)
 
-
+    def gather_parameters(self, mode=None, *arg):
+        info = dict()
+        info['cache_budget_fraction'] = self.CACHE_BUDGET_FRACTION
+        info['N_CONTENTS'] = self.N_CONTENTS
+        info['N_MEASURED_REQ'] = self.N_MEASURED_REQUESTS
+        info['N_WARMUP_REQ'] = self.N_WARMUP_REQUESTS
+        info['alpha'] = self.ALPHA
+        info['on_path_routing'] = self.on_path_routing
+        info['on_path_winner'] = self.on_path_winner
+        info['rel_pop'] = self.relative_popularity
+        info['cache_placement'] = self.cache_placement
+        info['scenario'] = self.scenario
+        info['core'] = self.core
+        info['k'] = self.k
+        info['h'] = self.h
+        info['v_value'] = self._v_value()
+        info['u_value'] = self._u_value()
+        info['hit_rate'] = 100 * self.hits / float(self.N_MEASURED_REQUESTS)
+        info['delay'] = sum(self.all_delays) / float(self.N_MEASURED_REQUESTS)
+        if mode == 'budget':
+            info['cache_budget_fraction'] = arg[0]
+        if mode == 'alpha':
+            info['alpha'] = arg[0]
+        return info
+    
+    def save_latex(self, n):
+        f = open('./Steps/results.tex', 'r+')
+        tex = f.read()
+        image = '\n\n\\begin{figure}[h]\n\\centering\n\\includegraphics[scale=.6]{%i.png}\n\\end{figure}\n'%(n)
+        i = tex.find('%%here%%')
+        
+        info = str(self.gather_parameters())
+        info = info.replace(', ', '\n\n')
+        info = info.replace('{', '')
+        info = info.replace('}', '')
+        info = info.replace('_', ' ')
+                
+        res = tex[:i] + image + '\n\n\n' + 'id: ' + str(n) + info 
+        res +=  '\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n' + tex[i:] 
+        res += '\\pagebreak\n'
+        
+        f.seek(0)
+        f.write(res)
+        f.close()
+        
+    
+    def save_db(self):
+        db = sql.connect('./Steps/data.db', timeout=4)
+        cur = db.cursor()
+        n = cur.execute('SELECT COUNT(*) FROM parameters').fetchone()[0]
+        cur.execute('INSERT INTO parameters VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            (n+1,
+             self.CACHE_BUDGET_FRACTION,
+             self.N_MEASURED_REQUESTS,
+             self.N_WARMUP_REQUESTS,
+             self.N_CONTENTS,
+             self.ALPHA,
+             self.INTERNAL_COST,
+             self.EXTERNAL_COST,
+             self.on_path_routing,
+             self.on_path_winner,
+             str(self.relative_popularity),
+             str(self.cache_placement),
+             str(self.scenario),
+             str(self.cr_hit),
+             str(self.winners),
+             self.core,
+             self.k,
+             self.h,
+             self.GAMMA,
+             self._v_value(),
+             self._u_value(),
+             100 * self.hits / float(self.N_MEASURED_REQUESTS),
+             sum(self.all_delays) / float(self.N_MEASURED_REQUESTS)
+             ))
+        db.commit()
+        db.close()
+        return n+1
+    
+    def _v_value(self):
+        f = open('network.py', 'r').read().split('#v_value')[1].split('=')[1]
+        return f.replace('\n', '')
+        
+    def _u_value(self):
+        f = open('network.py', 'r').read().split('#u_value')[1].split('=')[1]
+        return f.replace('\n', '')
+    
 class Cache(object):
     """
     Cache with LRU for replacement
@@ -565,12 +625,15 @@ if __name__ == '__main__':
     n = Network(2, 2, 6)
     
     scenarios = [
-                 ('CEE', True),
-#                 ('CEE', False),
+#                 ('CEE', True),
                  ('AUC', True),
-#                 ('AUC', False),
-                 ('RND', True),
+#                 ('RND', True),
+#                 ('MCD', True),
+#                 ('LCD', True),
+#                 ('CEE', False),
+#                 ('AUC', False),                 
 #                 ('RND', False),
+#                 ('MCD', False),                 
                 ]
 
     n.on_path_winner = True                
@@ -583,7 +646,7 @@ if __name__ == '__main__':
         ]
         
     CP = [
-        'uniform', 
+#        'uniform', 
         'betweenness',
         ]
         
@@ -595,7 +658,7 @@ if __name__ == '__main__':
         i = 0
         for rp in RP:
             for cp in CP:
-#                n = Network(4, 2, 6)
+
                 print '------%s-%s-----'%(scr, ['Off', 'On'][op])
                 n.reset()
                 n.on_path_routing = op
@@ -610,10 +673,10 @@ if __name__ == '__main__':
                     
         
 #                if n.scenario == 'AUC':
-                cr_hits = content_router_map(range(500), n.routers.keys(), n.cr_hit)
-                cr_winners = content_router_map(range(500), n.routers.keys(), n.winners)
+                cr_hits = content_router_map(range(1000), n.routers.keys(), n.cr_hit)
+                cr_winners = content_router_map(range(1000), n.routers.keys(), n.winners)
                 
-                w = 2
+                w = 4
                 a=fig.add_subplot(len(RP),w*len(CP),i+1)
                 a.set_title('hits')
                 imshow(cr_hits/np.max(cr_hits)>0)
@@ -622,12 +685,16 @@ if __name__ == '__main__':
                 a.set_title('winners')
                 imshow(cr_winners/np.max(cr_winners)>0)
                 
-#                a=fig.add_subplot(len(RP),w*len(CP),i+3)
-#                a.set_title('n hits')
-#                imshow(normalize_contents(cr_hits/np.max(cr_hits)))
-#                
-#                a=fig.add_subplot(len(RP),w*len(CP),i+4)
-#                a.set_title('n winners')
-#                imshow(normalize_contents(cr_winners/np.max(cr_winners)))
+                a=fig.add_subplot(len(RP),w*len(CP),i+3)
+                a.set_title('n hits')
+                imshow(normalize_contents(cr_hits/np.max(cr_hits)))
+                
+                a=fig.add_subplot(len(RP),w*len(CP),i+4)
+                a.set_title('n winners')
+                imshow(normalize_contents(cr_winners/np.max(cr_winners)))
 
-                i += 2
+                c_id = n.save_db()
+                plt.savefig('./Steps/%i.png'%(c_id))
+                n.save_latex(c_id)
+                
+                i += w
