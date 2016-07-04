@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 # from topology import Topology
 from workload import *
+import inspect
 from random import shuffle
 import fnss
 import networkx as nx
 import sqlite3 as sql
+from os import system
 # from cache import *
 from skimage.io import imshow
 import sys
@@ -15,9 +17,9 @@ import matplotlib.pyplot as plt
 
 class Network():
     def __init__(self, core, k, h):
-        self.CACHE_BUDGET_FRACTION = .05
+        self.CACHE_BUDGET_FRACTION = .04
         self.N_CONTENTS = 3 * 10 ** 4
-        self.N_WARMUP_REQUESTS = 4 * 10 ** 4
+        self.N_WARMUP_REQUESTS = 5 * 10 ** 4
         self.N_MEASURED_REQUESTS = 1 * 10 ** 4
         self.GAMMA = 1
         self.ALPHA = .8
@@ -28,7 +30,7 @@ class Network():
         self.on_path_routing = True
         self.on_path_winner = True
         self.relative_popularity = True
-        self.cache_placement = 'uniform'
+        self.cache_placement = 'betweenness'
         self.scenario = 'AUC'
         
         self.saved_shots = []
@@ -63,7 +65,10 @@ class Network():
         self.cr_hit = []
         self.winners = []
 
-        
+    
+    
+        self.v_value = lambda p,d,v,pp,dp: p*d
+        self.u_value = lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0
 
         self.cnt = 0
 
@@ -113,6 +118,9 @@ class Network():
                 # On-path hit occurs
                 if self.cache[node].has_content(content):
                     self.cache[node].get_content(content)
+#                    idx = path.index(node)
+#                    if idx > 1:
+#                        self.cache[path[idx-1]].put_content(content)
                     if measured:
                         self.hit(content, node)
                         self.all_delays.append(delay)
@@ -136,7 +144,7 @@ class Network():
             # Cache miss and decision for cache placement
             #     self.cr_hit.append(None)
             else:
-                
+#                if content<(self.N_CONTENTS/50):
                 winner = self._winner_determination(path, content, time)
                 if measured:
                     # self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
@@ -144,8 +152,8 @@ class Network():
                     self.all_delays.append(delay)
                     self.winners.append((content, winner))
                     
-                if winner is None:
-                    print 'Winner is None!!'
+#                if winner is None:
+#                    print 'Winner is None!!'
                 if winner is not None:
                     self.cache[winner].put_content(content)
 
@@ -283,7 +291,10 @@ class Network():
                     if v not in self.clients:
                         nodes.append(v)
             nodes = list(set(nodes))
-        
+#        for v in nodes:
+#            _, p, _, t = self.get_node_information(v, content, time)
+#            if p/t < .2:
+#                nodes.remove(v)
 
         #############################
         # v is caching node candidate
@@ -317,25 +328,30 @@ class Network():
                 average_distance_prim, popularity_prim, last_req_prim = 1, +10e5, time
 
             # print content, popularity, '----', content_prim, popularity_prim
-
+            
             for other in nodes:
 #                for u in self.neighbors2[other]:
                 '''
                 cache of a content effects on nodes in neighbors2
                 '''
-                        
+#                value = 0
                 if other == v:# and u == v:
                     #v_value
-                    value = popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
+                    value = self.v_value(popularity, average_distance, v, popularity_prim, average_distance_prim)
                     #v_value
+#                    value = popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
                     if print_res:
                         print v, self.topology.node[v]['depth'], value, average_distance
                 else:
+#                    value = 0
                     if content in self.informations[other]:
                         average_distance_u, popularity_u, last_req_u, total_req_u = self.get_node_information(other, content, time)
-                    #u_value
-                    value = 0
-                    #u_value
+                        #u_value
+                        value = self.u_value(popularity_u, average_distance_u, other, path, v)
+#                        if other in path[:path.index(v)]:
+#                            value = popularity_u
+                        #u_value
+                    else:value=0
 #                    value = popularity_u / (average_distance_u+[1,2][other in self.topology.neighbors(v)]*self.INTERNAL_COST)
                 sum_value += value
 
@@ -462,7 +478,7 @@ class Network():
         if self.cache_placement == 'betweenness':
             betweenness = nx.betweenness_centrality(self.topology)
         elif self.cache_placement == 'uniform':
-            betweenness = {node: .1 for node in self.routers}
+            betweenness = {node: 1. for node in self.routers}
         total_betweenness = float(sum(betweenness.values()))
         return {node: Cache(int(round(cache_budget * betweenness[node] / total_betweenness)))
                 for node in self.routers}
@@ -477,7 +493,7 @@ class Network():
         self.winners = []
 
     def write_result(self):
-        sys.stdout.write('\rHit rate = {0:.2f}%'.format(100 * self.hits / float(self.N_MEASURED_REQUESTS)))
+        sys.stdout.write('\rHit rate = >>>>>>>>>> {0:.2f}% <<<<<<<<<<'.format(100 * self.hits / float(self.N_MEASURED_REQUESTS)))
         print '\nAverage delay = %f' % (sum(self.all_delays) / float(self.N_MEASURED_REQUESTS))
 
     def hit(self, *args):
@@ -485,7 +501,7 @@ class Network():
         if len(args)==2:
             content = args[0]
             router = args[1]
-            n.cr_hit.append((content, router))
+            self.cr_hit.append((content, router))
 #            if self.scenario == 'AUC':
 #                self.informations[router][content]['popularity'] *= 20
         # self.cache_hit[node][content] += 1
@@ -498,6 +514,8 @@ class Network():
         info['N_CONTENTS'] = self.N_CONTENTS
         info['N_MEASURED_REQ'] = self.N_MEASURED_REQUESTS
         info['N_WARMUP_REQ'] = self.N_WARMUP_REQUESTS
+        info['hit_rate'] = 100 * self.hits / float(self.N_MEASURED_REQUESTS)
+        info['delay'] = sum(self.all_delays) / float(self.N_MEASURED_REQUESTS)
         info['alpha'] = self.ALPHA
         info['on_path_routing'] = self.on_path_routing
         info['on_path_winner'] = self.on_path_winner
@@ -509,8 +527,7 @@ class Network():
         info['h'] = self.h
         info['v_value'] = self._v_value()
         info['u_value'] = self._u_value()
-        info['hit_rate'] = 100 * self.hits / float(self.N_MEASURED_REQUESTS)
-        info['delay'] = sum(self.all_delays) / float(self.N_MEASURED_REQUESTS)
+        
         if mode == 'budget':
             info['cache_budget_fraction'] = arg[0]
         if mode == 'alpha':
@@ -520,23 +537,29 @@ class Network():
     def save_latex(self, n):
         f = open('./Steps/results.tex', 'r+')
         tex = f.read()
-        image = '\n\n\\begin{figure}[h]\n\\centering\n\\includegraphics[scale=.6]{%i.png}\n\\end{figure}\n'%(n)
+        image = '\n\n\\begin{figure}[h]\n\\centering\n\\includegraphics[scale=.8]{%i.png}\n\\end{figure}\n'%(n)
         i = tex.find('%%here%%')
         
         info = str(self.gather_parameters())
         info = info.replace(', ', '\n\n')
+        info = info.replace('\t', '')
+        info = info.replace('   ', '  ')
         info = info.replace('{', '')
         info = info.replace('}', '')
         info = info.replace('_', ' ')
+        info = info.replace('#', '//')
+#        info = info.split('#')[0]
                 
         res = tex[:i] + image + '\n\n\n' + 'id: ' + str(n) + info 
-        res +=  '\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n' + tex[i:] 
         res += '\\pagebreak\n'
+        res +=  '\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n' + tex[i:] 
+        
         
         f.seek(0)
         f.write(res)
         f.close()
         
+#        system('pdflatex ./Steps/results.tex')
     
     def save_db(self):
         db = sql.connect('./Steps/data.db', timeout=4)
@@ -569,15 +592,25 @@ class Network():
              ))
         db.commit()
         db.close()
-        return n+1
+        return (n+1)
     
     def _v_value(self):
-        f = open('network.py', 'r').read().split('#v_value')[1].split('=')[1]
-        return f.replace('\n', '')
+        f = inspect.getsource(self.v_value)
+        return ':'.join(f.split(':')[1:]).replace('\n','')
+#        return self.v_value
+#        f = open('network.py', 'r').read().split('#v_value')[1]#.split('=')[1]
+#        f = f.replace('  ', ' ')
+#        return f.replace('\n', '')
         
     def _u_value(self):
-        f = open('network.py', 'r').read().split('#u_value')[1].split('=')[1]
-        return f.replace('\n', '')
+#        f = open('network.py', 'r').read().split('#u_value')[1]#.split('=')[1]
+#        f = f.replace('  ', ' ')
+#        return f.replace('\n', '')
+        f = inspect.getsource(self.u_value)
+        return ':'.join(f.split(':')[1:]).replace('\n','')
+     
+        
+        
     
 class Cache(object):
     """
@@ -621,80 +654,143 @@ class Cache(object):
         return self.contents[-1] if len(self.contents) == self.cache_size else None
 
 
+
+
+
 if __name__ == '__main__':
-    n = Network(2, 2, 6)
-    
+    n = Network(3, 2, 6)
+    n.N_WARMUP_REQUESTS = 4 * 10 ** 4
+    n.N_MEASURED_REQUESTS = 10 ** 4
+    n.ALPHA = .7
+    n.CACHE_BUDGET_FRACTION = .05
     scenarios = [
 #                 ('CEE', True),
-                 ('AUC', True),
+                 
 #                 ('RND', True),
 #                 ('MCD', True),
-#                 ('LCD', True),
+                 ('LCD', True),
 #                 ('CEE', False),
 #                 ('AUC', False),                 
 #                 ('RND', False),
 #                 ('MCD', False),                 
+                 ('AUC', True),
                 ]
 
-    n.on_path_winner = True                
+#    n.on_path_winner = False
 #    n.relative_popularity = True
 #    n.cache_placement = 'betweenness'
-#    
+
+#popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
+    V = [
+#        lambda p,d,v,pp,dp: p,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: p/d,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: p-pp,
+#        lambda p,d,v,pp,dp: (p-pp)/d,
+        lambda p,d,v,pp,dp: p*d,
+#        lambda p,d,v,pp,dp: -p*d,
+#        lambda p,d,v,pp,dp: -p/d,
+#        lambda p,d,v,pp,dp: (p-pp)*d,
+    ]
+
+
+    U = [
+#        lambda p,d,u,path,v: 0,
+#        lambda p,d,u,path,v: p,
+#        lambda p,d,u,path,v: p/d,
+#        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,                                            
+#        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+
+    ]
+#   average_distance_u+[1,2][other in self.topology.neighbors(v)]*self.INTERNAL_COST
+    OW = [
+        True,
+#        False
+        ]
+    
     RP = [
         True, 
 #        False,
         ]
         
     CP = [
-#        'uniform', 
-        'betweenness',
+        'uniform', 
+#        'betweenness',
         ]
         
     n.shots = [400001]
-    
-
-    for (scr, op) in scenarios:
-        fig = plt.figure()
-        i = 0
-        for rp in RP:
-            for cp in CP:
-
-                print '------%s-%s-----'%(scr, ['Off', 'On'][op])
-                n.reset()
-                n.on_path_routing = op
-                n.scenario = scr
-                
-                n.relative_popularity = rp
-                n.cache_placement = cp
-                
-                n.run()
-                n.write_result()
-        
+    cnt = 0
+#    I = range(1,8)+range(29,36)+[56+8]+range(56+11,56+15)
+    fig = plt.figure()
+    for ow in OW:
+        print 'Winning: %s' %['Off-path', 'On-path'][ow]
+        for (scr, op) in scenarios:
+#            fig = plt.figure()
+            print '------%s-%s-----'%(scr, ['Off', 'On'][op])
+            i = 0
+            for rp in RP:
+                print 'Popularity: %s' %['Aboslute', 'Relative'][rp]
+                for cp in CP:
+                    print 'Cache placement: %s' % cp
+                    print '---------------------------------'
+                    for vf in V:
+#                        print '*****'
+                        for uf in U:
+                            cnt += 1
+#                            if cnt not in I:
+#                                continue
+                            i = 0
+#                            fig = plt.figure()
+                            
+                            n.v_value = vf
+                            n.u_value = uf
+                            
+                            
+                            
+                            
+                            
+                            n.reset()
+                            n.on_path_winner = ow
+                            n.on_path_routing = op
+                            n.scenario = scr
+                            
+                            n.relative_popularity = rp
+                            n.cache_placement = cp
+                            
+                            n.run()
+                            n.write_result()
                     
-        
-#                if n.scenario == 'AUC':
-                cr_hits = content_router_map(range(1000), n.routers.keys(), n.cr_hit)
-                cr_winners = content_router_map(range(1000), n.routers.keys(), n.winners)
-                
-                w = 4
-                a=fig.add_subplot(len(RP),w*len(CP),i+1)
-                a.set_title('hits')
-                imshow(cr_hits/np.max(cr_hits)>0)
-                
-                a=fig.add_subplot(len(RP),w*len(CP),i+2)
-                a.set_title('winners')
-                imshow(cr_winners/np.max(cr_winners)>0)
-                
-                a=fig.add_subplot(len(RP),w*len(CP),i+3)
-                a.set_title('n hits')
-                imshow(normalize_contents(cr_hits/np.max(cr_hits)))
-                
-                a=fig.add_subplot(len(RP),w*len(CP),i+4)
-                a.set_title('n winners')
-                imshow(normalize_contents(cr_winners/np.max(cr_winners)))
-
-                c_id = n.save_db()
-                plt.savefig('./Steps/%i.png'%(c_id))
-                n.save_latex(c_id)
-                
-                i += w
+                                
+                            cr_hits = content_router_map(range(1000), n.routers.keys(), n.cr_hit)
+                            cr_winners = content_router_map(range(1000), n.routers.keys(), n.winners)
+                            
+                            w = 4
+                            a=fig.add_subplot(1,w,i+1)
+                            a.set_title('hits')
+                            imshow((cr_hits/np.max(cr_hits))>0)
+                            
+                            a=fig.add_subplot(1,w,i+2)
+                            a.set_title('winners')
+                            imshow((cr_winners/np.max(cr_winners))>0)
+                            
+                            a=fig.add_subplot(1,w,i+3)
+                            a.set_title('n hits')
+                            imshow(normalize_contents(cr_hits/np.max(cr_hits)))
+                            
+                            a=fig.add_subplot(1,w,i+4)
+                            a.set_title('n winners')
+                            imshow(normalize_contents(cr_winners/np.max(cr_winners)))
+            
+                            c_id = n.save_db()
+                            plt.savefig('./Steps/%i.png'%(c_id))
+                            n.save_latex(c_id)
+            
+                                            
+                            i += w
+                    print '---------------------------------'
