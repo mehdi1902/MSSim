@@ -658,21 +658,22 @@ class Cache(object):
 
 
 if __name__ == '__main__':
-    n = Network(3, 2, 6)
-    n.N_WARMUP_REQUESTS = 4 * 10 ** 4
-    n.N_MEASURED_REQUESTS = 10 ** 4
-    n.ALPHA = .7
+    n = Network(4, 2, 6)
+    n.N_WARMUP_REQUESTS = 5 * 10 ** 4
+    n.N_MEASURED_REQUESTS = 3 * 10 ** 4
+    n.GAMMA = .7
+    n.ALPHA = .8
     n.CACHE_BUDGET_FRACTION = .05
     scenarios = [
 #                 ('CEE', True),
                  
 #                 ('RND', True),
 #                 ('MCD', True),
-                 ('LCD', True),
+#                 ('LCD', True),
 #                 ('CEE', False),
-#                 ('AUC', False),                 
+#                 ('AUC', False),
 #                 ('RND', False),
-#                 ('MCD', False),                 
+#                 ('MCD', False),
                  ('AUC', True),
                 ]
 
@@ -682,30 +683,39 @@ if __name__ == '__main__':
 
 #popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
     V = [
-#        lambda p,d,v,pp,dp: p,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
-#        lambda p,d,v,pp,dp: p/d,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+        lambda p,d,v,pp,dp: p,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+        lambda p,d,v,pp,dp: p/d,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
 #        lambda p,d,v,pp,dp: p-pp,
 #        lambda p,d,v,pp,dp: (p-pp)/d,
         lambda p,d,v,pp,dp: p*d,
-#        lambda p,d,v,pp,dp: -p*d,
-#        lambda p,d,v,pp,dp: -p/d,
+        lambda p,d,v,pp,dp: -p*d,
+        lambda p,d,v,pp,dp: -p/d,
 #        lambda p,d,v,pp,dp: (p-pp)*d,
     ]
+
 
 
     U = [
 #        lambda p,d,u,path,v: 0,
 #        lambda p,d,u,path,v: p,
 #        lambda p,d,u,path,v: p/d,
-#        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,                                            
-#        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p if u in path[:path.index(u)] else 0,
+                                            
+        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
+        
+        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+        
+        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
 
     ]
 #   average_distance_u+[1,2][other in self.topology.neighbors(v)]*self.INTERNAL_COST
