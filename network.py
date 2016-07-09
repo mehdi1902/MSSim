@@ -559,6 +559,29 @@ class Network():
         f.write(res)
         f.close()
         
+    def add_section_latex(self, *text):
+        f = open('./Steps/results.tex', 'r+')
+        tex = f.read()
+        i = tex.find('%%here%%')
+        
+        info = str(self.gather_parameters())
+        info = info.replace(', ', '\n\n')
+        info = info.replace('\t', '')
+        info = info.replace('   ', '  ')
+        info = info.replace('{', '')
+        info = info.replace('}', '')
+        info = info.replace('_', ' ')
+        info = info.replace('#', '//')
+#        info = info.split('#')[0]
+                
+        res = tex[:i] + '\n\n\n\\\centering' + text[0]
+        res += '\\pagebreak\n' + tex[i:] 
+        
+        
+        f.seek(0)
+        f.write(res)
+        f.close()
+        
 #        system('pdflatex ./Steps/results.tex')
     
     def save_db(self):
@@ -661,7 +684,7 @@ if __name__ == '__main__':
     n = Network(4, 2, 6)
     n.N_WARMUP_REQUESTS = 5 * 10 ** 4
     n.N_MEASURED_REQUESTS = 3 * 10 ** 4
-    n.GAMMA = .7
+    n.GAMMA = .99
     n.ALPHA = .8
     n.CACHE_BUDGET_FRACTION = .05
     scenarios = [
@@ -681,36 +704,45 @@ if __name__ == '__main__':
 #    n.relative_popularity = True
 #    n.cache_placement = 'betweenness'
 
+    section_text = 'A brute-force try'
+
 #popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
     V = [
-        lambda p,d,v,pp,dp: p,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
-        lambda p,d,v,pp,dp: p/d,# + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: p,
+        lambda p,d,v,pp,dp: p + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: p/d,
+        lambda p,d,v,pp,dp: p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: p*d,
+        lambda p,d,v,pp,dp: p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: -p*d,
+        lambda p,d,v,pp,dp: -p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        lambda p,d,v,pp,dp: -p/d,
+        lambda p,d,v,pp,dp: -p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+        
 #        lambda p,d,v,pp,dp: p-pp,
 #        lambda p,d,v,pp,dp: (p-pp)/d,
-        lambda p,d,v,pp,dp: p*d,
-        lambda p,d,v,pp,dp: -p*d,
-        lambda p,d,v,pp,dp: -p/d,
 #        lambda p,d,v,pp,dp: (p-pp)*d,
     ]
 
 
 
     U = [
-#        lambda p,d,u,path,v: 0,
+        lambda p,d,u,path,v: 0,
 #        lambda p,d,u,path,v: p,
 #        lambda p,d,u,path,v: p/d,
-        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p if u in path[:path.index(u)] else 0,
-                                            
-        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
         
-        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+#        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p if u in path[:path.index(u)] else 0,
+#                                            
+#        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
+#        
+#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+#        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+#        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+#        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
         
         lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
         lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
@@ -731,32 +763,40 @@ if __name__ == '__main__':
         
     CP = [
         'uniform', 
-#        'betweenness',
+        'betweenness',
         ]
+        
+
+    n.add_section_latex(section_text)        
         
     n.shots = [400001]
     cnt = 0
 #    I = range(1,8)+range(29,36)+[56+8]+range(56+11,56+15)
-    fig = plt.figure()
+#    fig = plt.figure()
     for ow in OW:
-        print 'Winning: %s' %['Off-path', 'On-path'][ow]
+#        print 'Winning: %s' %['Off-path', 'On-path'][ow]
         for (scr, op) in scenarios:
 #            fig = plt.figure()
-            print '------%s-%s-----'%(scr, ['Off', 'On'][op])
+#            print '------%s-%s-----'%(scr, ['Off', 'On'][op])
             i = 0
             for rp in RP:
-                print 'Popularity: %s' %['Aboslute', 'Relative'][rp]
+#                print 'Popularity: %s' %['Aboslute', 'Relative'][rp]
                 for cp in CP:
-                    print 'Cache placement: %s' % cp
-                    print '---------------------------------'
+#                    print 'Cache placement: %s' % cp
+#                    print '---------------------------------'
                     for vf in V:
 #                        print '*****'
                         for uf in U:
+                            print '-------------%s-%s------------'%(scr, ['Off', 'On'][op])
+#                            print '---------------------------------'
+                            print 'Winning: %s' %['Off-path', 'On-path'][ow]                            
+                            print 'Popularity: %s' %['Aboslute', 'Relative'][rp]
+                            print 'Cache placement: %s' % cp
                             cnt += 1
 #                            if cnt not in I:
 #                                continue
                             i = 0
-#                            fig = plt.figure()
+                            fig = plt.figure()
                             
                             n.v_value = vf
                             n.u_value = uf
@@ -803,4 +843,4 @@ if __name__ == '__main__':
             
                                             
                             i += w
-                    print '---------------------------------'
+                print '================================'

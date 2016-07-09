@@ -15,26 +15,27 @@ Effect of caching everything or select
 Effect of height of the tree
 '''
 
-def gamma_test(core, k, h, gamma_values):
+def gamma_test(core, k, h, gamma_values, scenario):
     hit_rates = []
     delays = []
     cnt = 0
     for gamma in gamma_values:
-        network = Network(core, k, h)
+#        network = Network(core, k, h)
+        network.reset()
         cnt += 1
-        print '-------Experiment %d with GAMMA=%f-------'%(cnt, gamma)
+        print '-------%s %d with GAMMA=%f-------'%(scenario, cnt, gamma)
         
+#        network.CACHE_BUDGET_FRACTION = budget
         network.GAMMA = gamma
+        network.scenario = scenario
         network.run()
 
-        print 'hit rate = %f' % (network.hits/float(network.N_MEASURED_REQUESTS))
+        print 'hit rate = %f'%(network.hits/float(network.N_MEASURED_REQUESTS))
         
         hit_rates.append(network.hits/float(network.N_MEASURED_REQUESTS))
         delays.append(sum(network.all_delays)/float(network.N_MEASURED_REQUESTS))
         
     return hit_rates, delays
-#    plot(gamma_values, hit_rates)
-#    plot(gamma_values)
         
 
 def cache_budget_test(core, k, h, budget_values, scenario):
@@ -50,7 +51,7 @@ def cache_budget_test(core, k, h, budget_values, scenario):
         network.CACHE_BUDGET_FRACTION = budget
         network.scenario = scenario
         network.run()
-        print network.cache[20].cache_size
+#        print network.cache[20].cache_size
 
         print 'hit rate = %f'%(network.hits/float(network.N_MEASURED_REQUESTS))
         
@@ -125,8 +126,8 @@ if __name__ == '__main__':
     network.N_CONTENTS = 3 * 10 ** 4
     network.N_WARMUP_REQUESTS = 4 * 10 ** 4
     network.N_MEASURED_REQUESTS = 1 * 10 ** 4
-    network.GAMMA = 1
-    network.ALPHA = .4
+    network.GAMMA = .7
+    network.ALPHA = .8
 
     network.INTERNAL_COST = 2
     network.EXTERNAL_COST = 10
@@ -134,19 +135,19 @@ if __name__ == '__main__':
     network.on_path_routing = True
     network.on_path_winner = True
     network.relative_popularity = True
-    network.cache_placement = 'betweenness'
+    network.cache_placement = 'uniform'
 #    gamma_values = np.array(range(50, 102, 2))/100.
 #    hit_rates, delays = gamma_test(core, k, h, gamma_values)
 #    
 
-    
+    gamma_values = np.array(range(1, 11))/10.
     budget_values = np.array(range(0, 1000, 50))/10000.
     alpha_values = np.array(range(1, 13, 1))/10.
 
     scenarios = [
 #                 'CEE', 
 #                 'RND', 
-                 'LCD',
+#                 'LCD',
                  'AUC'
                  ]
 
@@ -156,9 +157,9 @@ if __name__ == '__main__':
         # alpha_values = np.array(range(1, 30))/10.
         for i in range(repeat):
 #                hit_rates, delays = cache_budget_alpha_test(core, k, h, budget_values, alpha_values, scenario)    
-                hit_rates, delays = cache_budget_test(core, k, h, budget_values, scenario)
+#                hit_rates, delays = cache_budget_test(core, k, h, budget_values, scenario)
     #            hit_rates, delays = alpha_test(core, k, h, alpha_values, scenario)
-                # hit_rates, delays = alpha_test(core, k, h, alpha_values, scenario)
+                hit_rates, delays = gamma_test(core, k, h, gamma_values, scenario)
                 H.append(hit_rates)
                 D.append(delays)
 
@@ -195,24 +196,23 @@ if __name__ == '__main__':
 #    plt.savefig('./Results/%s-budget-hitrate-alpha=%.2f-gamma=%.2f.png' % (scenario, network.ALPHA, network.GAMMA))
 #    plt.clf()
     
-#    for i in range(len(scenarios)):
-##        plt.plot(alpha_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+    for i in range(len(scenarios)):
+#        plt.plot(alpha_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
 #        plt.plot(budget_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
-#        # plt.plot(budget_values, np.mean(D[3:6]), label='RND')
-#        # plt.plot(budget_values, np.mean(D[6:9]), label='AUC')
-#        # plt.plot(budget_values, np.mean(D[9:12]), label='LCD')
-#    plt.legend(loc='best')
-#    plt.savefig('./Results/%s-budget-hitrate-alpha=%f-gamma=%f.png' % (scenario, network.ALPHA, network.GAMMA))
-#    plt.clf()
-#
-#    for i in range(len(scenarios)):
-##        plt.plot(alpha_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
-#        plt.plot(budget_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
-#        # plt.plot(budget_values, np.mean(D[3:6]), label='RND')
-#        # plt.plot(budget_values, np.mean(D[6:9]), label='AUC')
-#        # plt.plot(budget_values, np.mean(D[9:12]), label='LCD')
-#    plt.legend(loc='best')
-#    plt.savefig('./Results/%s-budget-delay-alpha=%f-gamma=%f.png' % (scenario, network.ALPHA, network.GAMMA))
-#    plt.clf()
+        plt.plot(gamma_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+        
+    plt.legend(loc='best')
+    plt.savefig('./Results/%s-budget-hitrate-alpha=%f-gamma=%f.png' % (scenario, network.ALPHA, network.GAMMA))
+    plt.clf()
+
+    for i in range(len(scenarios)):
+#        plt.plot(alpha_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+        plt.plot(budget_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+        # plt.plot(budget_values, np.mean(D[3:6]), label='RND')
+        # plt.plot(budget_values, np.mean(D[6:9]), label='AUC')
+        # plt.plot(budget_values, np.mean(D[9:12]), label='LCD')
+    plt.legend(loc='best')
+    plt.savefig('./Results/%s-budget-delay-alpha=%f-gamma=%f.png' % (scenario, network.ALPHA, network.GAMMA))
+    plt.clf()
 
 
