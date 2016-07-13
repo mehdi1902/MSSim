@@ -51,7 +51,9 @@ class Network():
 
         self.informations = {node: {} for node in self.topology.node}
 
-        self.workload = None
+        self.workload = StationaryWorkload(self.clients.keys(), self.N_CONTENTS, self.ALPHA,
+                                           n_warmup=self.N_WARMUP_REQUESTS,
+                                           n_measured=self.N_MEASURED_REQUESTS)
         self._cache_budget = None
         self.cache = None
 
@@ -65,10 +67,10 @@ class Network():
         self.cr_hit = []
         self.winners = []
 
+#        probs = []    
     
-    
-        self.v_value = lambda p,d,v,pp,dp: p*d
-        self.u_value = lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0
+        self.v_value = lambda p,d,v,pp,dp: p
+        self.u_value = lambda p,d,u,path,v: 0
 
         self.cnt = 0
 
@@ -144,16 +146,13 @@ class Network():
             # Cache miss and decision for cache placement
             #     self.cr_hit.append(None)
             else:
-#                if content<(self.N_CONTENTS/50):
                 winner = self._winner_determination(path, content, time)
                 if measured:
                     # self.delays[content].append((len(path)-1)*self.INTERNAL_COST+self.EXTERNAL_COST)
                     delay = self.max_delay # (len(path) - 1) * self.INTERNAL_COST + self.EXTERNAL_COST
                     self.all_delays.append(delay)
                     self.winners.append((content, winner))
-                    
-#                if winner is None:
-#                    print 'Winner is None!!'
+                
                 if winner is not None:
                     self.cache[winner].put_content(content)
 
@@ -312,7 +311,12 @@ class Network():
 
             ###############################
             # Information of candidate node
-            average_distance, popularity, last_req, total_req = self.get_node_information(v, content, time)
+#            average_distance, popularity, last_req, total_req = self.get_node_information(v, content, time)
+#            total_pop = 0
+#            for content in self.informations[v]:
+#                if content is not 'total_req':
+#                    total_pop += self.informations[v][content]['popularity']
+#                    print total_pop
             
 #            print popularity, total_req
 
@@ -337,8 +341,10 @@ class Network():
 #                value = 0
                 if other == v:# and u == v:
                     #v_value
+                    
                     value = self.v_value(popularity, average_distance, v, popularity_prim, average_distance_prim)
                     #v_value
+#                    value = popularity / float(total_pop) * total_req / time
 #                    value = popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
                     if print_res:
                         print v, self.topology.node[v]['depth'], value, average_distance
@@ -369,8 +375,18 @@ class Network():
             popularity = info['popularity']
             average_distance = info['average_distance']
             last_req = info['last_req']
+            total_req = self.informations[node]['total_req']
+            
+#            pops = [self.informations[node][c]['popularity'] for c in self.informations[node]
+#                                                    if c is not 'total_req']
+#            k = len(pops) - np.searchsorted(np.array(pops), popularity)
+#
+#            popularity += k**-self.ALPHA * (time-last_req) * (total_req / time)
 
-            popularity = self.GAMMA ** ((time - last_req) / 10000.) * popularity + 1
+#            popularity += popularity/float(total_req)
+
+            popularity2 = self.GAMMA ** ((time - last_req) / 10000.) * popularity + 1 #popularity/float(total_req)
+#            popularity *= total_req/time
             # TODO: correct beta value
             # beta = max(min(self.GAMMA ** ((time - last_req) / 10000.), .8), .1)
             beta = .8
@@ -380,31 +396,50 @@ class Network():
                 average_distance = delay
         else:
             popularity = 1
+            popularity2 = 1.
             average_distance = delay
-        self.informations[node][content] = {'popularity': popularity,
+            
+        self.informations[node][content] = {'popularity': popularity2,
                                             'average_distance': average_distance,
                                             'last_req': time}
         if 'total_req' in self.informations[node]:
             total_req = self.informations[node]['total_req']
         else:
-            total_req = 0
-        self.informations[node]['total_req'] = total_req + 1
+            total_req = 10e-10
+        self.informations[node]['total_req'] = total_req + 1 #popularity/float(total_req)
 
     def get_node_information(self, node, content, time):
         if content in self.informations[node]:
             info = self.informations[node][content]
             average_distance = info['average_distance']
             last_req = info['last_req']
-            popularity = self.GAMMA ** ((time - last_req) / 10000.) * info['popularity']
-            # popularity /= self.cnt
+            popularity = info['popularity']
+#            print popularity
             total_req = self.informations[node]['total_req']
+            
+#            pops = [self.informations[node][c]['popularity'] for c in self.informations[node]
+#                                        if c is not 'total_req']
+#                                            
+#            k = len(pops) - np.searchsorted(np.array(pops), popularity)
+#
+#            popularity += k**-self.ALPHA * (time-last_req) * (total_req / time)            
+            
+#            popularity +=
+            
+            popularity = self.GAMMA ** ((time - last_req) / 10000.) * info['popularity']
+#            popularity *= total_req/time
+            # popularity /= self.cnt
+
         else:
-            average_distance = self.EXTERNAL_COST
+            average_distance = self.topology.node[node]['depth']
             last_req = time
-            popularity = 0
+            popularity = 0.
             total_req = 1
+#            print popularity
         if self.relative_popularity:
+            
             popularity /= float(total_req)
+            
         return float(average_distance), float(popularity), last_req, float(total_req)
 
     def _neighbors_of_neighbors(self, node):
@@ -574,8 +609,8 @@ class Network():
         info = info.replace('#', '//')
 #        info = info.split('#')[0]
                 
-        res = tex[:i] + '\n\n\n\\\centering' + text[0]
-        res += '\\pagebreak\n' + tex[i:] 
+        res = tex[:i] + '\n\n\n\\begin{center}\n\\LARGE{' + text[0]
+        res += '}\n\\end{center}\\pagebreak\n' + tex[i:] 
         
         
         f.seek(0)
@@ -683,8 +718,8 @@ class Cache(object):
 if __name__ == '__main__':
     n = Network(4, 2, 6)
     n.N_WARMUP_REQUESTS = 5 * 10 ** 4
-    n.N_MEASURED_REQUESTS = 3 * 10 ** 4
-    n.GAMMA = .99
+    n.N_MEASURED_REQUESTS = 1 * 10 ** 4
+    n.GAMMA = 1
     n.ALPHA = .8
     n.CACHE_BUDGET_FRACTION = .05
     scenarios = [
@@ -704,50 +739,52 @@ if __name__ == '__main__':
 #    n.relative_popularity = True
 #    n.cache_placement = 'betweenness'
 
-    section_text = 'A brute-force try'
+    section_text = 'with req per sec'
 
 #popularity + 10 * (self.cache[v].cache_size <> len(self.cache[v].contents))
     V = [
 #        lambda p,d,v,pp,dp: p,
-        lambda p,d,v,pp,dp: p + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
-#        lambda p,d,v,pp,dp: p/d,
-        lambda p,d,v,pp,dp: p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+##        lambda p,d,v,pp,dp: p + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+        lambda p,d,v,pp,dp: -p,
+##        lambda p,d,v,pp,dp: -p + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+##        lambda p,d,v,pp,dp: p/d,
+##        lambda p,d,v,pp,dp: p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
 #        lambda p,d,v,pp,dp: p*d,
-        lambda p,d,v,pp,dp: p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+##        lambda p,d,v,pp,dp: p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
 #        lambda p,d,v,pp,dp: -p*d,
-        lambda p,d,v,pp,dp: -p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
-#        lambda p,d,v,pp,dp: -p/d,
-        lambda p,d,v,pp,dp: -p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
-        
-#        lambda p,d,v,pp,dp: p-pp,
-#        lambda p,d,v,pp,dp: (p-pp)/d,
-#        lambda p,d,v,pp,dp: (p-pp)*d,
+##        lambda p,d,v,pp,dp: -p*d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+##        lambda p,d,v,pp,dp: -p/d,
+##        lambda p,d,v,pp,dp: -p/d + 10 * (n.cache[v].cache_size<>len(n.cache[v].contents)),
+#        
+##        lambda p,d,v,pp,dp: p-pp,
+##        lambda p,d,v,pp,dp: (p-pp)/d,
+##        lambda p,d,v,pp,dp: (p-pp)*d,
     ]
 
 
 
     U = [
-        lambda p,d,u,path,v: 0,
-#        lambda p,d,u,path,v: p,
-#        lambda p,d,u,path,v: p/d,
+#        lambda p,d,u,path,v: 0,
+##        lambda p,d,u,path,v: p,
+##        lambda p,d,u,path,v: p/d,
         
-#        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
+        lambda p,d,u,path,v: p if u in path[:path.index(u)] else 0,
 #        lambda p,d,u,path,v: -p if u in path[:path.index(u)] else 0,
-#                                            
-#        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
-#        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
+##                                            
+##        lambda p,d,u,path,v: p*d if u in path[:path.index(u)] else 0,
+##        lambda p,d,u,path,v: -p*d if u in path[:path.index(u)] else 0,
+##        lambda p,d,u,path,v: -p/d if u in path[:path.index(u)] else 0,
+##        lambda p,d,u,path,v: p/d if u in path[:path.index(u)] else 0,
+##        
+##        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+##        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+##        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
+##        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
 #        
-#        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-#        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-#        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-#        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)),
-        
-        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
-        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+##        lambda p,d,u,path,v: p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p*(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+##        lambda p,d,u,path,v: p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
+#        lambda p,d,u,path,v: -p/(d+[1,2][u in n.topology.neighbors(v)]*(n.INTERNAL_COST)) if u in path[:path.index(u)] else 0,
 
     ]
 #   average_distance_u+[1,2][other in self.topology.neighbors(v)]*self.INTERNAL_COST
@@ -757,13 +794,13 @@ if __name__ == '__main__':
         ]
     
     RP = [
-        True, 
-#        False,
+#        True,
+        False,
         ]
         
     CP = [
         'uniform', 
-        'betweenness',
+#        'betweenness',
         ]
         
 
@@ -772,7 +809,7 @@ if __name__ == '__main__':
     n.shots = [400001]
     cnt = 0
 #    I = range(1,8)+range(29,36)+[56+8]+range(56+11,56+15)
-#    fig = plt.figure()
+    fig = plt.figure()
     for ow in OW:
 #        print 'Winning: %s' %['Off-path', 'On-path'][ow]
         for (scr, op) in scenarios:
@@ -796,7 +833,7 @@ if __name__ == '__main__':
 #                            if cnt not in I:
 #                                continue
                             i = 0
-                            fig = plt.figure()
+#                            fig = plt.figure()
                             
                             n.v_value = vf
                             n.u_value = uf
@@ -818,7 +855,9 @@ if __name__ == '__main__':
                     
                                 
                             cr_hits = content_router_map(range(1000), n.routers.keys(), n.cr_hit)
+#                            cr_hits = np.max(cr_hits) - cr_hits
                             cr_winners = content_router_map(range(1000), n.routers.keys(), n.winners)
+#                            cr_winners = np.max(cr_winners) - cr_winners
                             
                             w = 4
                             a=fig.add_subplot(1,w,i+1)

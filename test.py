@@ -126,7 +126,7 @@ if __name__ == '__main__':
     network.N_CONTENTS = 3 * 10 ** 4
     network.N_WARMUP_REQUESTS = 4 * 10 ** 4
     network.N_MEASURED_REQUESTS = 1 * 10 ** 4
-    network.GAMMA = .7
+    network.GAMMA = 1
     network.ALPHA = .8
 
     network.INTERNAL_COST = 2
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     scenarios = [
 #                 'CEE', 
 #                 'RND', 
-#                 'LCD',
+                 'LCD',
                  'AUC'
                  ]
 
@@ -157,9 +157,9 @@ if __name__ == '__main__':
         # alpha_values = np.array(range(1, 30))/10.
         for i in range(repeat):
 #                hit_rates, delays = cache_budget_alpha_test(core, k, h, budget_values, alpha_values, scenario)    
-#                hit_rates, delays = cache_budget_test(core, k, h, budget_values, scenario)
+                hit_rates, delays = cache_budget_test(core, k, h, budget_values, scenario)
     #            hit_rates, delays = alpha_test(core, k, h, alpha_values, scenario)
-                hit_rates, delays = gamma_test(core, k, h, gamma_values, scenario)
+#                hit_rates, delays = gamma_test(core, k, h, gamma_values, scenario)
                 H.append(hit_rates)
                 D.append(delays)
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
 
 
-#    fig = plt.figure()
+    fig = plt.figure()
 #    ax = fig.add_subplot(111, projection='3d')
 #    for (i,c) in zip(range(1, len(scenarios)),colors[:2]): 
 #        ax.plot_surface(X, Y.transpose(), np.mean(H[i*repeat:(i+1)*repeat,:,:], axis=0),
@@ -198,8 +198,8 @@ if __name__ == '__main__':
     
     for i in range(len(scenarios)):
 #        plt.plot(alpha_values, np.mean(D[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
-#        plt.plot(budget_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
-        plt.plot(gamma_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+        plt.plot(budget_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
+#        plt.plot(gamma_values, np.mean(H[i*repeat:(i+1)*repeat], axis=0), label=scenarios[i])
         
     plt.legend(loc='best')
     plt.savefig('./Results/%s-budget-hitrate-alpha=%f-gamma=%f.png' % (scenario, network.ALPHA, network.GAMMA))
