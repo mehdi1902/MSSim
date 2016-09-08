@@ -1,0 +1,36 @@
+{
+	"CACHE_BUDGET_FRACTION" : ".5",
+    "N_CONTENTS" : "4 * 10 ** 4",
+    "N_WARMUP_REQUESTS" : "4 * 10 ** 4",
+    "N_MEASURED_REQUESTS" : "0",
+    "GAMMA" : "1",
+    "ALPHA" : ".8",
+
+	"INTERNAL_COST" : "2",
+    "EXTERNAL_COST" : "10",
+
+	"on_path_routing" : 
+	[
+		"True",
+	],
+
+    "on_path_winner" : 
+    [
+    	"True",
+    ],
+
+    "relative_popularity" : 
+    [
+    	"True",
+    ],
+
+    "cache_placement" : 
+    [
+    	"betweenness",
+    ],
+
+    "scenario" : 
+    [
+    	"AUC",
+    ],
+}
